@@ -1,0 +1,19 @@
+/**
+ * Free Icon Set: Weather Icons
+ * From: Design Instruct (designinstruct.com)
+ *
+ * URL: http://designinstruct.com/free-resources/icons/free-icon-set-weather/
+ *
+ * You MAY use the source files in this package for commercial
+ * purposes.
+ *
+ * You MAY NOT redistribute or sell the source files in this package.
+ *
+ * LICENSE: This source file package is subject to the
+ * Design Instruct Downloadable Freebie Files Usage Terms
+ * that is viewable through the following URL:
+ * http://designinstruct.com/freebie-usage-terms/
+ *
+ * Author     Freepik (freepik.com)
+ * License    http://designinstruct.com/freebie-usage-terms/
+ */
