@@ -444,10 +444,10 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 	if (success)
 	{
 		config.retry = FALSE;
-		if (curTime && (curTime->tm_hour >= 22 || curTime->tm_hour <= 2))
+		if (curTime && (curTime->tm_hour >= 0 && curTime->tm_hour <= 3))
 		{
 			sleepTime = sleepTimeLong;
-			config.longSleepCnt = 3;
+			config.longSleepCnt = 2;
 		}
 		else
 		{
