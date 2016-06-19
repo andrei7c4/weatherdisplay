@@ -13,7 +13,7 @@ $ git clone https://github.com/andrei7c4/weatherdisplay
 $ ch weatherdisplay/app
 ```
 - Set SDK paths and esptool parameters for your ESP8266 module in makefile
-- Finaly build everything and flash the binary
+- Finally build everything and flash the binary
 ```
 $ make all
 $ make flash
