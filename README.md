@@ -38,7 +38,7 @@ Display is connected to ESP8266 in the following way:
 Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Please see [the schematics here](schematics.pdf).
 
 ## How to use
-Device settings can be changed through the serial interface (115200,N,8). The following syntax should be used:
+Device settings can be changed through the serial interface (115200/8-N-1). The following syntax should be used:
 ```
 parameter:value<CR>
 ```
