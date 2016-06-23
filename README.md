@@ -10,7 +10,7 @@ Most of the time the device stays in deep sleep mode consuming only 18 µA. Whil
 - Clone this repository
 ```
 $ git clone https://github.com/andrei7c4/weatherdisplay
-$ ch weatherdisplay/app
+$ cd weatherdisplay/app
 ```
 - Set SDK paths and esptool parameters for your ESP8266 module in makefile
 - Finally build everything and flash the binary
@@ -25,17 +25,16 @@ Any ESP8266 based module with at least 1 MB flash and SPI pins, such as ESP-12E,
 
 The [display with control board](http://www.pervasivedisplays.com/kits/mpicosys740) can be purchased from [DigiKey](http://www.digikey.com/product-detail/en/SW074AS182/SW074AS182-ND/4898789).
 Display is connected to ESP8266 in the following way:
-```
-TCM-P74-230    ESP8266 
---------------------------------
-/EN            GPIO5
-/BUSY          GPIO4
-MISO           HMISO (GPIO12)
-MOSI           HMOSI (GPIO13)
-/CS            HCS (GPIO15)
-SCK            HSCLK (GPIO14)
-```
-Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Full schematics coming soon.
+TCM-P74-230  |  ESP8266     
+-------------|-------------
+/EN          |  GPIO5
+/BUSY        |  GPIO4
+MISO         |  HMISO (GPIO12)
+MOSI         |  HMOSI (GPIO13)
+/CS          |  HCS (GPIO15)
+SCK          |  HSCLK (GPIO14)
+
+Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Please see [the schematics here](schematics.pdf).
 
 ## How to use
 Device settings can be changed through the serial interface (115200,N,8). The following syntax should be used:
@@ -52,7 +51,7 @@ Additionally, [data.sparkfun.com](https://data.sparkfun.com) service keys can be
  - publickey
  - privatekey
 
-If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. Please check config.c file for additional supported parameters.
+If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. Please see the [config.c](app/src/config.c) file for additional supported parameters.
 
 ***
 [![](http://img.youtube.com/vi/pryzzH_i0os/0.jpg)](http://www.youtube.com/watch?v=pryzzH_i0os)
