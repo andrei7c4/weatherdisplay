@@ -25,14 +25,14 @@ Any ESP8266 based module with at least 1 MB flash and SPI pins, such as ESP-12E,
 
 The [display with control board](http://www.pervasivedisplays.com/kits/mpicosys740) can be purchased from [DigiKey](http://www.digikey.com/product-detail/en/SW074AS182/SW074AS182-ND/4898789).
 Display is connected to ESP8266 in the following way:
-TCM-P74-230  |  ESP8266     
--------------|-------------
-/EN          |  GPIO5
-/BUSY        |  GPIO4
-MISO         |  HMISO (GPIO12)
-MOSI         |  HMOSI (GPIO13)
-/CS          |  HCS (GPIO15)
-SCK          |  HSCLK (GPIO14)
+| TCM-P74-230  | ESP8266        |
+| ------------ | -------------- |
+| /EN          | GPIO5          |
+| /BUSY        | GPIO4          |
+| MISO         | HMISO (GPIO12) |
+| MOSI         | HMOSI (GPIO13) |
+| /CS          | HCS (GPIO15)   |
+| SCK          | HSCLK (GPIO14) |
 
 Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Please see [the schematics here](schematics.pdf).
 
