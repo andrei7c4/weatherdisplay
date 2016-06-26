@@ -128,7 +128,7 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	curWeather->datetime = strtoint(buf);
 	debug("datetime: %s\n", buf);
 
-	if (!config.cityId[0])
+	if (!retain.cityId[0])
 	{
 		if (!jumpToNextType(&state, buf, sizeof(buf),
 				1, JSON_TYPE_PAIR_NAME, "id"))
@@ -138,11 +138,11 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 			return ERROR;
 
 		jsonparse_copy_value(&state, buf, sizeof(buf));
-		if (os_strlen(buf) >= sizeof(config.cityId))
+		if (os_strlen(buf) >= sizeof(retain.cityId))
 			return ERROR;
 
-		os_strcpy(config.cityId, buf);
-		debug("cityId: %s\n", config.cityId);
+		os_strcpy(retain.cityId, buf);
+		debug("cityId: %s\n", retain.cityId);
 	}
 	return OK;
 }

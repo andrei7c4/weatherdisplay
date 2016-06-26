@@ -113,7 +113,7 @@ void ICACHE_FLASH_ATTR drawMetaInfo(struct tm *curTime)
 		dispDrawStr(arial16, DISP_WIDTH-strWidth, DISP_HEIGHT-30, strbuf);
 	}
 
-	os_sprintf(strbuf, "fails %u/%u", config.fails, config.attempts);
+	os_sprintf(strbuf, "fails %u/%u", retain.fails, retain.attempts);
 	strWidth = dispStrWidth(arial16, strbuf);
 	dispDrawStr(arial16, DISP_WIDTH-strWidth, DISP_HEIGHT-15, strbuf);
 }

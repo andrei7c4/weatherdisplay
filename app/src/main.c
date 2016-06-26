@@ -89,12 +89,13 @@ void user_init(void)
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
 	configRead(&config);
-	debug("attempts %u, fails %u, retry %u\n", config.attempts, config.fails, config.retry);
+	retainRead(&retain);
+	debug("attempts %u, fails %u, retry %u\n", retain.attempts, retain.fails, retain.retry);
 
-	if (config.longSleepCnt > 0)
+	if (retain.longSleepCnt > 0)
 	{
-		config.longSleepCnt--;
-		configWrite(&config);
+		retain.longSleepCnt--;
+		retainWrite(&retain);
 		setAppState(stateGotoSleep);
 		system_deep_sleep(sleepTimeLong);
 	}
@@ -238,8 +239,8 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			return;
 		os_sprintf(httpMsgTxBuf,
 			"GET /data/2.5/weather?%s=%s&mode=json&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			config.cityId[0] ? "id" : "q",
-			config.cityId[0] ? config.cityId : config.city,
+			retain.cityId[0] ? "id" : "q",
+			retain.cityId[0] ? retain.cityId : config.city,
 			config.appid, openWeatherMapHost);
 		break;
 	case stateGetForecast:
@@ -247,8 +248,8 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			return;
 		os_sprintf(httpMsgTxBuf,
 			"GET /data/2.5/forecast/daily?%s=%s&mode=json&cnt=5&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			config.cityId[0] ? "id" : "q",
-			config.cityId[0] ? config.cityId : config.city,
+			retain.cityId[0] ? "id" : "q",
+			retain.cityId[0] ? retain.cityId : config.city,
 			config.appid, openWeatherMapHost);
 		break;
 	case stateSendTempToSf:
@@ -439,15 +440,15 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 
 	setAppState(stateGotoSleep);
 	dispOff();
-	config.attempts++;
+	retain.attempts++;
 
 	if (success)
 	{
-		config.retry = FALSE;
+		retain.retry = FALSE;
 		if (curTime && (curTime->tm_hour >= 0 && curTime->tm_hour <= 3))
 		{
 			sleepTime = sleepTimeLong;
-			config.longSleepCnt = 2;
+			retain.longSleepCnt = 2;
 		}
 		else
 		{
@@ -456,20 +457,20 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 	}
 	else	// failed
 	{
-		config.fails++;
-		if (!config.retry)	// not retried yet
+		retain.fails++;
+		if (!retain.retry)	// not retried yet
 		{
-			config.retry = TRUE;
+			retain.retry = TRUE;
 			sleepTime = 60UL*1000000UL;	// retry after one minute
 		}
 		else	// retried once, still fails
 		{
-			config.retry = FALSE;
+			retain.retry = FALSE;
 			sleepTime = config.interval;	// sleep for normal time
 		}
 	}
 	debug("sleepTime %u\n", sleepTime);
-	configWrite(&config);
+	retainWrite(&retain);
 	system_deep_sleep(sleepTime);
 }
 

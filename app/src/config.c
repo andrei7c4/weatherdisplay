@@ -1,38 +1,35 @@
 #include <os_type.h>
 #include <osapi.h>
+#include <user_interface.h>
 #include "config.h"
 #include "conv.h"
 #include "display.h"
 #include "debug.h"
 
 Config config;
+Retain retain;
 
 void ICACHE_FLASH_ATTR configInit(Config *config)
 {
 	os_memset(config, 0, sizeof(Config));
-	config->key = CONFIG_VALID_KEY;
-	config->attempts = 0;
-	config->fails = 0;
-	config->retry = FALSE;
+	config->magic = VALID_MAGIC_NUMBER;
 	os_strcpy(config->ssid, DEFAULT_SSID);
 	os_strcpy(config->pass, DEFAULT_PASS);
 	os_strcpy(config->city, DEFAULT_CITY);
 	os_strcpy(config->cityDisplayed, DEFAULT_CITY);
-	os_strcpy(config->cityId, "");
 	os_strcpy(config->appid, DEFAULT_APPID);
 	os_strcpy(config->publickey, DEFAULT_SP_PUBLICKEY);
 	os_strcpy(config->privatekey, DEFAULT_SP_PRIVATEKEY);
 	config->utcoffset = 0;
 	config->tempoffset = 0;
 	config->interval = 30UL*60UL*1000000UL;
-	config->longSleepCnt = 0;
 	config->debug = FALSE;
 }
 
 void ICACHE_FLASH_ATTR configRead(Config *config)
 {
 	spi_flash_read(CONFIG_SAVE_FLASH_ADDR, (uint*)config, sizeof(Config));
-	if (config->key != CONFIG_VALID_KEY)
+	if (config->magic != VALID_MAGIC_NUMBER)
 	{
 		debug("no valid config in flash\n");
 		configInit(config);
@@ -49,6 +46,34 @@ void ICACHE_FLASH_ATTR configWrite(Config *config)
 	spi_flash_erase_sector(CONFIG_SAVE_FLASH_SECTOR);
 	spi_flash_write(CONFIG_SAVE_FLASH_ADDR, (uint*)config, sizeof(Config));
 }
+
+
+void retainInit(Retain *retain)
+{
+	os_memset(retain, 0, sizeof(Retain));
+	retain->magic = VALID_MAGIC_NUMBER;
+}
+
+void retainRead(Retain *retain)
+{
+	system_rtc_mem_read(RTC_USER_DATA_ADDR, (uint*)retain, sizeof(Retain));
+	if (retain->magic != VALID_MAGIC_NUMBER)
+	{
+		debug("no valid retain found\n");
+		retainInit(retain);
+		retainWrite(retain);
+	}
+	else
+	{
+		debug("valid retain found\n");
+	}
+}
+
+void retainWrite(Retain *retain)
+{
+	system_rtc_mem_write(RTC_USER_DATA_ADDR, (uint*)retain, sizeof(Retain));
+}
+
 
 
 LOCAL int ICACHE_FLASH_ATTR setParam(char *param, uint paramSize, const char *value, uint valueLen)
@@ -99,7 +124,7 @@ LOCAL int ICACHE_FLASH_ATTR setCity(const char *value, uint valueLen)
 				config.cityDisplayed[i] = value[i];
 			}
 		}
-		os_memset(config.cityId, 0, sizeof(config.cityId));
+		os_memset(retain.cityId, 0, sizeof(retain.cityId));
 		return OK;
 	}
 	return ERROR;
@@ -186,6 +211,8 @@ LOCAL int ICACHE_FLASH_ATTR setDebug(const char *value, uint valueLen)
 LOCAL int ICACHE_FLASH_ATTR resetConfig(const char *value, uint valueLen)
 {
 	configInit(&config);
+	retainInit(&retain);
+	retainWrite(&retain);
 	return OK;
 }
 
