@@ -275,7 +275,7 @@ void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
 	float temp = (float)sensor * scale[range] + offset[range] + config.tempoffset + 0.05;
 	int integer = (int)temp;
 	int fract = (int)((temp-integer)*10.0);
-	os_sprintf(tempstr, "%d.%d\n", integer, fract);
+	os_sprintf(tempstr, "%d.%d", integer, fract);
 }
 
 void ICACHE_FLASH_ATTR dispSpiInit(void)

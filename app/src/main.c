@@ -20,6 +20,7 @@
 
 const char openWeatherMapHost[] = "api.openweathermap.org";
 const char sparkfunHost[] = "data.sparkfun.com";
+const char sfFieldName[] = "temp";
 
 #define HTTP_MSG_MAX_LEN	4096
 char httpMsgRxBuf[HTTP_MSG_MAX_LEN];
@@ -164,20 +165,22 @@ LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 LOCAL void ICACHE_FLASH_ATTR checkDnsStatus(void *arg)
 {
     struct espconn *pespconn = arg;
-    if (stateGetOwmIp)
+    if (appState == stateGetOwmIp)
     {
-        espconn_gethostbyname(pespconn, openWeatherMapHost, &serverIp, getHostByNameCb);
+		espconn_gethostbyname(pespconn, openWeatherMapHost, &serverIp, getHostByNameCb);
+		os_timer_arm(&gpTmr, 1000, 0);		
     }
-    else
+    else if (appState == stateGetSparkfunIp)
     {
-        espconn_gethostbyname(pespconn, sparkfunHost, &serverIp, getHostByNameCb);
+		espconn_gethostbyname(pespconn, sparkfunHost, &serverIp, getHostByNameCb);
+		os_timer_arm(&gpTmr, 1000, 0);		
     }
-    os_timer_arm(&gpTmr, 1000, 0);
 }
 
 LOCAL void ICACHE_FLASH_ATTR getHostByNameCb(const char *name, ip_addr_t *ipaddr, void *arg)
 {
     struct espconn *pespconn = (struct espconn *)arg;
+	os_timer_disarm(&gpTmr);
 
 	if (ipaddr == NULL || ipaddr->addr == 0)
 	{
@@ -187,14 +190,13 @@ LOCAL void ICACHE_FLASH_ATTR getHostByNameCb(const char *name, ip_addr_t *ipaddr
 
 	if (serverIp.addr != 0)
 	{
-		debug("getHostByNameCb owmServerIp != 0\n");
+		debug("getHostByNameCb serverIp != 0\n");
 		return;
 	}
 
 	setAppState((appState == stateGetOwmIp) ? stateConnectToOwm : stateConnectToSf);
 
 	// connect to openweathermap server
-	os_timer_disarm(&gpTmr);
 	serverIp.addr = ipaddr->addr;
 	os_memcpy(pespconn->proto.tcp->remote_ip, &ipaddr->addr, 4);
 	pespconn->proto.tcp->remote_port = 80;	// use HTTP port
@@ -256,8 +258,8 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 		if (!config.publickey[0] || !config.privatekey[0])
 			return;
 		os_sprintf(httpMsgTxBuf,
-			"GET /input/%s?private_key=%s&temp=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			config.publickey, config.privatekey, indoorTemp, sparkfunHost);
+			"GET /input/%s?private_key=%s&%s=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			config.publickey, config.privatekey, sfFieldName, indoorTemp, sparkfunHost);
 		break;
 	default: return;
 	}
@@ -316,7 +318,7 @@ LOCAL void ICACHE_FLASH_ATTR onTcpConnFailed(void *arg, sint8 err)
 
 LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 {
-	debug("processHttpMessage %d\n", httpMsgCurLen);
+	debug("parseHttpReply %d\n", httpMsgCurLen);
 	httpMsgRxBuf[httpMsgCurLen] = 0;
 
 	//os_printf("%s\n", httpMsgRxBuf);
