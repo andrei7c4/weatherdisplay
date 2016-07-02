@@ -15,7 +15,7 @@ FW_BASE		= firmware
 XTENSA_TOOLS_ROOT ?= /home/andrei/esp-open-sdk/xtensa-lx106-elf/bin
 
 # base directory of the ESP8266 SDK package, absolute
-SDK_BASE	?= /home/andrei/esp-open-sdk/esp_iot_sdk_v1.5.2
+SDK_BASE	?= /home/andrei/esp-open-sdk/sdk
 
 # esptool path and port
 ESPTOOL ?= /home/andrei/esp-open-sdk/esptool/esptool.py
@@ -121,6 +121,7 @@ MODULES	= src src/drivers src/contikijson src/fonts
 EXTRA_INCDIR = include $(SDK_BASE)/../extra/include
 
 # libraries used in this project, mainly provided by the SDK
+#LIBS = c gcc hal phy pp net80211 lwip wpa main crypto
 LIBS = c mgcc hal phy pp net80211 lwip wpa main crypto
 
 # compiler flags using during compilation of source files
@@ -210,7 +211,7 @@ $(FW_BASE):
 	$(Q) mkdir -p $@
 
 
-flash:
+flash: all
 	$(ESPTOOL) -p $(ESPPORT) -b $(BAUD) write_flash $(flashimageoptions) 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
 
 # ===============================================================
