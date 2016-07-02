@@ -4,8 +4,8 @@ This is a simple weather display built with ESP8266 WiFi chip and 7.4" E ink dis
 
 Most of the time the device stays in deep sleep mode consuming only 18 µA. While updating the weather power consumption varies from 80 to 150 mA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With 30 minute update interval 3000 mAh battery should last for a few months on one charge.
 
-## How to build
-### Software
+## Building the software
+### On Linux
 - Install [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk)
 - Clone this repository
 ```
@@ -18,9 +18,21 @@ $ cd weatherdisplay/app
 $ make all
 $ make flash
 ```
+### On Windows
+- Install [Unofficial Development Kit for Espressif ESP8266](https://github.com/CHERTS/esp8266-devkit)
+- Download ZIP or clone this repository
+- In Eclipse select File->New->Makefile Project with Existing Code
+- Set Existing Code Location to `<full path to>weatherdisplay\app` and click Finish
+- In newly created project properties (C/C++ Build) change build command to `mingw32-make.exe -f ${ProjDirPath}/Makefile`
+- In C/C++ Build/Environment add `PATH` variable with paths to MinGW and MSYS, e.g. `C:\MinGW\bin;C:\MinGW\msys\1.0\bin`
+- In Make Target view right click on newly created project and select New
+- Set Target name to `all` and click OK. Repeat this for `clean` and `flash` targets.
+- Set SDK paths and esptool parameters for your ESP8266 module in makefile
+- You should now be able to build and clean the project and flash the binaries
+
 Custom fonts and icons can be created with [this tool](https://github.com/andrei7c4/fontconverter).
 
-### Hardware
+## Building the hardware
 Any ESP8266 based module with at least 1 MB flash and SPI pins, such as ESP-12E, can be used. Development boards, such as [NodeMCU-DEVKIT](https://github.com/nodemcu/nodemcu-devkit-v1.0) or similar, can be used too, but power consumption of these boards might not be as low.
 
 The [display with control board](http://www.pervasivedisplays.com/kits/mpicosys740) can be purchased from [DigiKey](http://www.digikey.com/product-detail/en/SW074AS182/SW074AS182-ND/4898789).
@@ -37,7 +49,7 @@ Display is connected to ESP8266 in the following way:
 
 Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Please see [the schematics here](schematics.pdf).
 
-## How to use
+## Usage
 Device settings can be changed through the serial interface (115200/8-N-1). The following syntax should be used:
 ```
 parameter:value<CR>
