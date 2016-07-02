@@ -446,7 +446,7 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 
 	if (success)
 	{
-		retain.retry = FALSE;
+		retain.retry = 0;
 		if (curTime && (curTime->tm_hour >= 0 && curTime->tm_hour <= 3))
 		{
 			sleepTime = sleepTimeLong;
@@ -460,14 +460,14 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 	else	// failed
 	{
 		retain.fails++;
-		if (!retain.retry)	// not retried yet
+		if (retain.retry < 1)	// not retried yet
 		{
-			retain.retry = TRUE;
+			retain.retry++;
 			sleepTime = 60UL*1000000UL;	// retry after one minute
 		}
 		else	// retried once, still fails
 		{
-			retain.retry = FALSE;
+			retain.retry = 0;
 			sleepTime = config.interval;	// sleep for normal time
 		}
 	}
