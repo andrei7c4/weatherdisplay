@@ -2,6 +2,7 @@
 #define INCLUDE_CONFIG_H_
 
 #include <spi_flash.h>
+#include <ip_addr.h>
 #include "typedefs.h"
 
 
@@ -35,6 +36,8 @@ extern Config config;
 
 typedef struct{
 	uint magic;
+	struct ip_info ipConfig;
+	ip_addr_t dns1, dns2;
 	uint attempts;
 	uint fails;
 	uint retry;

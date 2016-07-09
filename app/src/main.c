@@ -1,6 +1,8 @@
 #include <os_type.h>
 #include <osapi.h>
 #include <ip_addr.h>
+#include <lwip/err.h>
+#include <lwip/dns.h>
 #include <user_interface.h>
 #include <espconn.h>
 #include <mem.h>
@@ -40,6 +42,8 @@ struct tm *curTime = NULL;
 
 int dispUpdateDone = FALSE;
 const uint sleepTimeLong = 60UL*60UL*1000000UL;
+
+const uint dnsCheckInterval = 100;
 
 typedef enum{
 	stateInit,
@@ -88,18 +92,21 @@ void user_init(void)
 	os_timer_setfn(&timeoutTmr, (os_timer_func_t *)timeoutTmrCb, NULL);
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
-
-	configRead(&config);
+	
 	retainRead(&retain);
-	debug("attempts %u, fails %u, retry %u\n", retain.attempts, retain.fails, retain.retry);
-
 	if (retain.longSleepCnt > 0)
 	{
 		retain.longSleepCnt--;
 		retainWrite(&retain);
 		setAppState(stateGotoSleep);
 		system_deep_sleep(sleepTimeLong);
+		return;
 	}
+	configRead(&config);
+	
+	debug("Built on %s %s\n", __DATE__, __TIME__);
+	debug("SDK version %s\n", system_get_sdk_version());
+	debug("attempts %u, fails %u, retry %u\n", retain.attempts, retain.fails, retain.retry);
 
 	dispSpiInit();
 
@@ -110,6 +117,15 @@ void user_init(void)
 
 LOCAL void ICACHE_FLASH_ATTR connectToWiFiAP(void)
 {
+	if (retain.ipConfig.ip.addr && retain.ipConfig.netmask.addr &&
+		retain.ipConfig.gw.addr && retain.dns1.addr)
+	{
+		wifi_station_dhcpc_stop();
+		wifi_set_ip_info(STATION_IF, &retain.ipConfig);
+		espconn_dns_setserver(0, &retain.dns1);
+		espconn_dns_setserver(1, &retain.dns2);
+	}
+
 	struct station_config stationConf;
 	stationConf.bssid_set = 0;	// mac address not needed
 	os_memcpy(stationConf.ssid, config.ssid, sizeof(stationConf.ssid));
@@ -124,6 +140,7 @@ LOCAL void ICACHE_FLASH_ATTR connectToWiFiAP(void)
 LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 {
 	struct ip_info ipconfig;
+	memset(&ipconfig, 0, sizeof(ipconfig));
 
 	os_timer_disarm(&gpTmr);
 
@@ -132,6 +149,10 @@ LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 	uint8 connStatus = wifi_station_get_connect_status();
 	if (connStatus == STATION_GOT_IP && ipconfig.ip.addr != 0)
 	{
+		os_memcpy(&retain.ipConfig, &ipconfig, sizeof(ipconfig));
+		retain.dns1 = dns_getserver(0);
+		retain.dns2 = dns_getserver(1);
+
 		// connection with AP established -> get openweathermap server ip
 		setAppState(stateGetOwmIp);
 
@@ -142,7 +163,7 @@ LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 		espconn_gethostbyname(&tcpSock, openWeatherMapHost, &serverIp, getHostByNameCb);
 
 		os_timer_setfn(&gpTmr, (os_timer_func_t *)checkDnsStatus, &tcpSock);
-		os_timer_arm(&gpTmr, 1000, 0);
+		os_timer_arm(&gpTmr, dnsCheckInterval, 0);
 	}
 	else
 	{
@@ -150,7 +171,7 @@ LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 			connStatus == STATION_NO_AP_FOUND	 ||
 			connStatus == STATION_CONNECT_FAIL)
 		{
-			debug("Failed to connect to AP (status: %u)", connStatus);
+			debug("Failed to connect to AP (status: %u)\n", connStatus);
 			gotoSleep(FALSE);
 		}
 		else
@@ -164,16 +185,16 @@ LOCAL void ICACHE_FLASH_ATTR checkWiFiConnStatus(void)
 
 LOCAL void ICACHE_FLASH_ATTR checkDnsStatus(void *arg)
 {
-    struct espconn *pespconn = arg;
+    struct espconn *pespconn = arg;	
     if (appState == stateGetOwmIp)
     {
 		espconn_gethostbyname(pespconn, openWeatherMapHost, &serverIp, getHostByNameCb);
-		os_timer_arm(&gpTmr, 1000, 0);		
+		os_timer_arm(&gpTmr, dnsCheckInterval, 0);		
     }
     else if (appState == stateGetSparkfunIp)
     {
 		espconn_gethostbyname(pespconn, sparkfunHost, &serverIp, getHostByNameCb);
-		os_timer_arm(&gpTmr, 1000, 0);		
+		os_timer_arm(&gpTmr, dnsCheckInterval, 0);		
     }
 }
 
@@ -182,21 +203,21 @@ LOCAL void ICACHE_FLASH_ATTR getHostByNameCb(const char *name, ip_addr_t *ipaddr
     struct espconn *pespconn = (struct espconn *)arg;
 	os_timer_disarm(&gpTmr);
 
-	if (ipaddr == NULL || ipaddr->addr == 0)
-	{
-		debug("getHostByNameCb ip NULL\n");
-		return;
-	}
-
 	if (serverIp.addr != 0)
 	{
 		debug("getHostByNameCb serverIp != 0\n");
 		return;
 	}
-
+	if (ipaddr == NULL || ipaddr->addr == 0)
+	{
+		debug("getHostByNameCb ip NULL\n");
+		return;
+	}
+	os_printf("getHostByNameCb ip: "IPSTR"\n", IP2STR(ipaddr));
+	
 	setAppState((appState == stateGetOwmIp) ? stateConnectToOwm : stateConnectToSf);
 
-	// connect to openweathermap server
+	// connect to server
 	serverIp.addr = ipaddr->addr;
 	os_memcpy(pespconn->proto.tcp->remote_ip, &ipaddr->addr, 4);
 	pespconn->proto.tcp->remote_port = 80;	// use HTTP port
@@ -305,6 +326,18 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDataReceived(void *arg, char *pusrdata, unsign
 LOCAL void ICACHE_FLASH_ATTR onTcpDisconnected(void *arg)
 {
 	debug("onTcpDisconnected\n");
+	if (appState == stateGetWeather || appState == stateGetForecast)
+	{
+		debug("reconnect to owm\n");
+		setAppState(stateConnectToOwm);
+		espconn_connect(&tcpSock);
+	}
+	else if (appState == stateSendTempToSf)
+	{
+		debug("reconnect to sf\n");
+		setAppState(stateConnectToSf);
+		espconn_connect(&tcpSock);
+	}
 }
 
 LOCAL void ICACHE_FLASH_ATTR onTcpConnFailed(void *arg, sint8 err)
@@ -389,7 +422,7 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 						espconn_gethostbyname(&tcpSock, sparkfunHost, &serverIp, getHostByNameCb);
 
 						os_timer_setfn(&gpTmr, (os_timer_func_t *)checkDnsStatus, &tcpSock);
-						os_timer_arm(&gpTmr, 1000, 0);
+						os_timer_arm(&gpTmr, dnsCheckInterval, 0);
 					}
 					else
 					{
@@ -409,13 +442,23 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 		if (json && !os_strncmp(json, "{\"cod\":\"404\"", 12))
 		{
 			// city not found or service down
-			debug("404\n");
+			debug("OWM 404\n");
 			gotoSleep(FALSE);
 		}
-		else	// if no reply with valid json in one second, resend request
+		else
 		{
-			os_timer_setfn(&gpTmr, (os_timer_func_t *)sendHttpRequest, NULL);
-			os_timer_arm(&gpTmr, 1000, 0);
+			if (os_strstr(httpMsgRxBuf, "HTTP/1.1 500"))
+			{
+				// service down
+				debug("OWM 500\n");
+				gotoSleep(FALSE);
+			}
+			else
+			{
+				// resend request afer one second
+				os_timer_setfn(&gpTmr, (os_timer_func_t *)sendHttpRequest, NULL);
+				os_timer_arm(&gpTmr, 1000, 0);				
+			}
 		}
 	}
 }
@@ -447,14 +490,27 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 	if (success)
 	{
 		retain.retry = 0;
-		if (curTime && (curTime->tm_hour >= 0 && curTime->tm_hour <= 3))
+		if (curTime)
 		{
-			sleepTime = sleepTimeLong;
-			retain.longSleepCnt = 2;
+			if (curTime->tm_hour >= 0 && curTime->tm_hour <= 3)
+			{
+				sleepTime = sleepTimeLong;
+				retain.longSleepCnt = 2;
+				if ((curTime->tm_hour+retain.longSleepCnt) > 3)	// if last long sleep
+				{
+					// renew ip on the next wake-up
+					os_memset(&retain.ipConfig, 0, sizeof(retain.ipConfig));
+				}
+			}
+			else
+			{
+				sleepTime = config.interval;
+			}
 		}
 		else
 		{
 			sleepTime = config.interval;
+			os_memset(&retain.ipConfig, 0, sizeof(retain.ipConfig));
 		}
 	}
 	else	// failed

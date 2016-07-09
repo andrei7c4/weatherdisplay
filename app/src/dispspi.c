@@ -147,7 +147,10 @@ void ICACHE_FLASH_ATTR dispBeginUpload(void)
 	curLine = 0;
 
 	// send ResetDataPointer command
-	uint16 rv = pd74SendCmd(0x20, 0x0D, 0x00, 0, -1, 0, -1);
+	uint16 rv = pd74SendCmd(CMD_RESET_DP_INS, 
+							CMD_RESET_DP_P1, 
+							CMD_RESET_DP_P2, 
+							NULL, -1, NULL, -1);
 	if (rv != pd74cmdOkRv)
 	{
 		debug("ResetDataPointer: %x\n", rv);
@@ -155,16 +158,23 @@ void ICACHE_FLASH_ATTR dispBeginUpload(void)
 	}
 
 	// send UploadImageData command with EPD header
-	rv = pd74SendCmd(0x20, 0x01, 0x00, (uchar*)pd74Header, sizeof(pd74Header), 0, -1);
+	rv = pd74SendCmd(CMD_UPLOAD_IMG_INS, 
+					CMD_UPLOAD_IMG_P1, 
+					CMD_UPLOAD_IMG_P2, 
+					(uchar*)pd74Header, sizeof(pd74Header), NULL, -1);
 	if (rv != pd74cmdOkRv)
 	{
 		debug("UploadImageData header: %x\n", rv);
 	}
 }
 
-static void ICACHE_FLASH_ATTR waitTillNotBusy(void)
+static void ICACHE_FLASH_ATTR checkIfBusy(void)
 {
-	while (!GPIO_INPUT_GET(BUSY_GPIO));
+	if (!GPIO_INPUT_GET(BUSY_GPIO))
+	{
+		os_timer_arm(&busyCheckTmr, 100, 0);
+		return;
+	}
 	os_delay_us(5);		// Tns
 
 	// get respons
@@ -183,15 +193,17 @@ static void ICACHE_FLASH_ATTR waitTillNotBusy(void)
 void ICACHE_FLASH_ATTR dispFinalizeUpload(void)
 {
 	// send DisplayUpdate command
-	pd74SendCmdBegin(0x24, 0x01, 0x00, -1);
+	pd74SendCmdBegin(CMD_DISP_UPDATE_INS, 
+					CMD_DISP_UPDATE_P1, 
+					CMD_DISP_UPDATE_P2, -1);
 	// execute command
 	os_delay_us(15);	// Te
 	GPIO_OUTPUT_SET(CS_GPIO, 1);
 	os_delay_us(10);	// Ta
 
 	debug("DisplayUpdate\n");
-	os_timer_setfn(&busyCheckTmr, (os_timer_func_t *)waitTillNotBusy, NULL);
-	os_timer_arm(&busyCheckTmr, DISP_REFRESH_TIME_MS, 0);
+	os_timer_setfn(&busyCheckTmr, (os_timer_func_t *)checkIfBusy, NULL);
+	os_timer_arm(&busyCheckTmr, 1000, 0);
 }
 
 static void ICACHE_FLASH_ATTR spiSendData32(uint *data, uint size)
@@ -211,7 +223,10 @@ void ICACHE_FLASH_ATTR dispUploadLine(uchar *line)
 	{
 	case 0:
 		// initiate UploadImageData command
-		pd74SendCmdBegin(0x20, 1, 0, DISP_MEMWIDTH*4);
+		pd74SendCmdBegin(CMD_UPLOAD_IMG_INS, 
+						CMD_UPLOAD_IMG_P1, 
+						CMD_UPLOAD_IMG_P2, 
+						DISP_MEMWIDTH*4);
 		spiSendData32((uint*)line, DISP_MEMWIDTH/4);
 		curLine++;
 		break;
@@ -235,10 +250,19 @@ void ICACHE_FLASH_ATTR dispUploadLine(uchar *line)
 
 void ICACHE_FLASH_ATTR dispPrintDeviceInfo(void)
 {
-	char *infostr = (char*)os_zalloc(50);
-	uint16 rv = pd74SendCmd(0x30, 0x01, 0x01, 0, -1, infostr, 0);
-	debug("info: %s, rv: %x\n", infostr, rv);
-	os_free(infostr);
+	char infostr[50] = "";
+	uint16 rv = pd74SendCmd(CMD_DEV_INFO_INS, 
+							CMD_DEV_INFO_P1, 
+							CMD_DEV_INFO_P2, 
+							NULL, -1, infostr, 0);
+	if (rv == pd74cmdOkRv)
+	{
+		debug("devinfo: %s\n", infostr);		
+	}
+	else
+	{
+		debug("devinfo rv: %x\n", rv);
+	}
 }
 
 void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
@@ -246,7 +270,10 @@ void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
 	const float scale[4] = {0.66, 0.52, 0.43, 0.39};
 	const float offset[4] = {-19.69, -13.95, -8.55, -4.75};
 	uint16 sensor;
-	uint16 rv = pd74SendCmd(0xE5, 0x01, 0x00, NULL, 0, (uchar*)&sensor, sizeof(sensor));
+	uint16 rv = pd74SendCmd(CMD_READ_SENSOR_INS, 
+							CMD_READ_SENSOR_P1, 
+							CMD_READ_SENSOR_P2, 
+							NULL, 0, (uchar*)&sensor, sizeof(sensor));
 	if (rv != pd74cmdOkRv)
 	{
 		debug("dispReadTemp rv %x\n", rv);

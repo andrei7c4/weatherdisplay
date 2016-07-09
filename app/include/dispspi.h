@@ -15,7 +15,27 @@
 #define EN_GPIO_MUX		PERIPHS_IO_MUX_GPIO4_U
 #define EN_GPIO_FUNC	FUNC_GPIO5
 
-#define DISP_REFRESH_TIME_MS	2500
+
+#define CMD_UPLOAD_IMG_INS	0x20
+#define CMD_UPLOAD_IMG_P1	0x01
+#define CMD_UPLOAD_IMG_P2	0x00
+
+#define CMD_RESET_DP_INS	0x20
+#define CMD_RESET_DP_P1		0x0D
+#define CMD_RESET_DP_P2		0x00
+
+#define CMD_DISP_UPDATE_INS	0x24
+#define CMD_DISP_UPDATE_P1	0x01
+#define CMD_DISP_UPDATE_P2	0x00
+
+#define CMD_DEV_INFO_INS	0x30
+#define CMD_DEV_INFO_P1		0x01
+#define CMD_DEV_INFO_P2		0x01
+
+#define CMD_READ_SENSOR_INS	0xE5
+#define CMD_READ_SENSOR_P1	0x01
+#define CMD_READ_SENSOR_P2	0x00
+
 
 void dispBeginUpload(void);
 void dispFinalizeUpload(void);
