@@ -213,7 +213,7 @@ LOCAL void ICACHE_FLASH_ATTR getHostByNameCb(const char *name, ip_addr_t *ipaddr
 		debug("getHostByNameCb ip NULL\n");
 		return;
 	}
-	os_printf("getHostByNameCb ip: "IPSTR"\n", IP2STR(ipaddr));
+	debug("getHostByNameCb ip: "IPSTR"\n", IP2STR(ipaddr));
 	
 	setAppState((appState == stateGetOwmIp) ? stateConnectToOwm : stateConnectToSf);
 
@@ -309,7 +309,6 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDataReceived(void *arg, char *pusrdata, unsign
 {
 	os_timer_disarm(&gpTmr);
 	debug("onTcpDataReceived %d\n", length);
-    //os_printf("%s\n", pusrdata);
 
 	if ((HTTP_MSG_MAX_LEN-httpMsgCurLen) > length)
 	{
@@ -344,7 +343,7 @@ LOCAL void ICACHE_FLASH_ATTR onTcpConnFailed(void *arg, sint8 err)
 {
 	if (appState != stateGotoSleep)
 	{
-		os_printf("onTcpConnFailed, appState %d\n", (int)appState);
+		debug("onTcpConnFailed, appState %d\n", (int)appState);
 		gotoSleep(FALSE);
 	}
 }
