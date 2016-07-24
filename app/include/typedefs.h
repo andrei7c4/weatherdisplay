@@ -5,7 +5,7 @@ typedef unsigned int uint;
 typedef unsigned char uchar;
 
 #define OK		0
-#define ERROR	-1;
+#define ERROR	-1
 
 #ifndef TRUE
 #define TRUE	1
