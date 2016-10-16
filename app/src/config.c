@@ -89,6 +89,11 @@ LOCAL int ICACHE_FLASH_ATTR setParam(char *param, uint paramSize, const char *va
 
 LOCAL int ICACHE_FLASH_ATTR setSsid(const char *value, uint valueLen)
 {
+	// also renew ip on ssid change
+	os_memset(&retain.ipConfig, 0, sizeof(retain.ipConfig));
+	retain.dns1.addr = 0;
+	retain.dns2.addr = 0;
+	retainWrite(&retain);
 	return setParam(config.ssid, sizeof(config.ssid), value, valueLen);
 }
 
@@ -125,6 +130,7 @@ LOCAL int ICACHE_FLASH_ATTR setCity(const char *value, uint valueLen)
 			}
 		}
 		os_memset(retain.cityId, 0, sizeof(retain.cityId));
+		retainWrite(&retain);
 		return OK;
 	}
 	return ERROR;
