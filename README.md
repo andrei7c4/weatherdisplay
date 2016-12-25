@@ -67,10 +67,10 @@ Additionally, [data.sparkfun.com](https://data.sparkfun.com) service keys can be
 If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. 
 
 The following user interface options are available:
- - chart:0 - [No forecast charts (icons only)](gui/chart0)
- - chart:1 - [Forecast chart for the next 24 hours](gui/chart1)
- - chart:2 - [Forecast chart for the next five days](gui/chart2)
- - chart:3 - [Both forecast charts](gui/chart3)
+ - chart:0 - [No forecast charts (icons only)](gui/chart0.png)
+ - chart:1 - [Forecast chart for the next 24 hours](gui/chart1.png)
+ - chart:2 - [Forecast chart for the next five days](gui/chart2.png)
+ - chart:3 - [Both forecast charts](gui/chart3.png)
 
 Please see the [config.c](app/src/config.c) file for additional supported parameters.
 
