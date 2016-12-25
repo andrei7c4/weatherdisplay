@@ -64,7 +64,15 @@ Additionally, [data.sparkfun.com](https://data.sparkfun.com) service keys can be
  - publickey
  - privatekey
 
-If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. Please see the [config.c](app/src/config.c) file for additional supported parameters.
+If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. 
+
+The following user interface options are available:
+ - chart:0 - [No forecast charts (icons only)](gui/chart0)
+ - chart:1 - [Forecast chart for the next 24 hours](gui/chart1)
+ - chart:2 - [Forecast chart for the next five days](gui/chart2)
+ - chart:3 - [Both forecast charts](gui/chart3)
+
+Please see the [config.c](app/src/config.c) file for additional supported parameters.
 
 ***
 [![](http://img.youtube.com/vi/pryzzH_i0os/0.jpg)](http://www.youtube.com/watch?v=pryzzH_i0os)
