@@ -2,36 +2,15 @@
 #include <osapi.h>
 #include "contikijson/jsonparse.h"
 #include "contikijson/jsontree.h"
+#include "parsejson.h"
 #include "common.h"
 #include "debug.h"
 #include "conv.h"
 #include "icons.h"
 #include "config.h"
 
-LOCAL const uint* ICACHE_FLASH_ATTR iconIdToImage(char *iconId, int big)
-{
-	if (!os_strcmp(iconId,"01d")) return big ? big_01d : small_01d;
-	else if (!os_strcmp(iconId,"01n")) return big ? big_01n : small_01n;
-	else if (!os_strcmp(iconId,"02d")) return big ? big_02d : small_02d;
-	else if (!os_strcmp(iconId,"02n")) return big ? big_02n : small_02n;
-	else if (!os_strcmp(iconId,"03d")) return big ? big_03d : small_03d;
-	else if (!os_strcmp(iconId,"03n")) return big ? big_03d : small_03d;
-	else if (!os_strcmp(iconId,"04d")) return big ? big_04d : small_04d;
-	else if (!os_strcmp(iconId,"04n")) return big ? big_04d : small_04d;
-	else if (!os_strcmp(iconId,"09d")) return big ? big_09d : small_09d;
-	else if (!os_strcmp(iconId,"09n")) return big ? big_09d : small_09d;
-	else if (!os_strcmp(iconId,"10d")) return big ? big_10d : small_10d;
-	else if (!os_strcmp(iconId,"10n")) return big ? big_10d : small_10d;
-	else if (!os_strcmp(iconId,"11d")) return big ? big_11d : small_11d;
-	else if (!os_strcmp(iconId,"11n")) return big ? big_11d : small_11d;
-	else if (!os_strcmp(iconId,"13d")) return big ? big_13d : small_13d;
-	else if (!os_strcmp(iconId,"13n")) return big ? big_13d : small_13d;
-	else if (!os_strcmp(iconId,"50d")) return big ? big_50d : small_50d;
-	else if (!os_strcmp(iconId,"50n")) return big ? big_50n : small_50n;
-	return NULL;
-}
 
-LOCAL int ICACHE_FLASH_ATTR jumpToNextType(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name)
+LOCAL int ICACHE_FLASH_ATTR jumpToNextType(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name, int stopOnDepthChange)
 {
 	int json_type;
 	while((json_type = jsonparse_next(state)) != 0)
@@ -51,6 +30,32 @@ LOCAL int ICACHE_FLASH_ATTR jumpToNextType(struct jsonparse_state *state, char *
 				return 1;
 			}
 		}
+		else if (state->depth < depth && stopOnDepthChange)
+		{
+			return 0;
+		}
+	}
+	return 0;
+}
+
+LOCAL int ICACHE_FLASH_ATTR jumpToNextType2(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name1, char *name2, int stopOnDepthChange)
+{
+	int json_type;
+	while((json_type = jsonparse_next(state)) != 0)
+	{
+		if (depth == state->depth && json_type == type)
+		{
+			jsonparse_copy_value(state, buf, bufSize);
+			if (!os_strncmp(buf, name1, bufSize) ||
+				!os_strncmp(buf, name2, bufSize))
+			{
+				return 1;
+			}
+		}
+		else if (state->depth < depth && stopOnDepthChange)
+		{
+			return 0;
+		}
 	}
 	return 0;
 }
@@ -64,19 +69,19 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	jsonparse_setup(&state, data, os_strlen(data));
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "weather"))
+			1, JSON_TYPE_PAIR_NAME, "weather", 0))
 		return ERROR;
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_ARRAY, NULL))
+			2, JSON_TYPE_ARRAY, NULL, 0))
 		return ERROR;
 
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			3, JSON_TYPE_OBJECT, NULL))
-		return ERROR;
+//	if (!jumpToNextType(&state, buf, sizeof(buf),
+//			3, JSON_TYPE_OBJECT, NULL, 0))
+//		return ERROR;
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			3, JSON_TYPE_PAIR_NAME, "description"))
+			3, JSON_TYPE_PAIR_NAME, "description", 0))
 		return ERROR;
 
 	if (jsonparse_next(&state) != JSON_TYPE_STRING)
@@ -88,7 +93,7 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	curWeather->description[sizeof(curWeather->description)-1] = '\0';
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			3, JSON_TYPE_PAIR_NAME, "icon"))
+			3, JSON_TYPE_PAIR_NAME, "icon", 0))
 		return ERROR;
 
 	if (jsonparse_next(&state) != JSON_TYPE_STRING)
@@ -96,18 +101,26 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 
 	jsonparse_copy_value(&state, buf, sizeof(buf));
 	debug("weather icon: %s\n", buf);
-	curWeather->icon = iconIdToImage(buf, 1);
+	if (os_strlen(buf) < sizeof(curWeather->icon))
+	{
+		os_strcpy(curWeather->icon, buf);
+	}
+	else
+	{
+		os_strcpy(curWeather->icon, "");
+	}
+	//curWeather->icon = iconIdToImage(buf, 1);
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "main"))
+			1, JSON_TYPE_PAIR_NAME, "main", 0))
 		return ERROR;
 
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_OBJECT, NULL))
-		return ERROR;
+//	if (!jumpToNextType(&state, buf, sizeof(buf),
+//			2, JSON_TYPE_OBJECT, NULL, 0))
+//		return ERROR;
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_PAIR_NAME, "temp"))
+			2, JSON_TYPE_PAIR_NAME, "temp", 0))
 		return ERROR;
 
 	if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
@@ -118,7 +131,7 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	debug("temperature: %s\n", buf);
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "dt"))
+			1, JSON_TYPE_PAIR_NAME, "dt", 0))
 		return ERROR;
 
 	if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
@@ -131,7 +144,7 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	if (!retain.cityId[0])
 	{
 		if (!jumpToNextType(&state, buf, sizeof(buf),
-				1, JSON_TYPE_PAIR_NAME, "id"))
+				1, JSON_TYPE_PAIR_NAME, "id", 0))
 			return ERROR;
 
 		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
@@ -147,39 +160,55 @@ int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
 	return OK;
 }
 
-int ICACHE_FLASH_ATTR parseForecast(char *data, Forecast *forecast)
+int ICACHE_FLASH_ATTR parseForecast(char *data, Forecast *forecast, ForecastType forecastType)
 {
 	char buf[128];
 	int json_type;
 	struct jsonparse_state state;
+	int count;
+	char *tempObj;
+	switch (forecastType)
+	{
+	case eForecastHourly:
+		count = FORECAST_HOURLY_CNT;
+		tempObj = "main";
+		break;
+	case eForecastDaily:
+		count = FORECAST_DAILY_CNT;
+		tempObj = "temp";
+		break;
+	default:
+		return ERROR;
+	}
+
 
 	jsonparse_setup(&state, data, os_strlen(data));
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "cnt"))
+			1, JSON_TYPE_PAIR_NAME, "cnt", 0))
 		return ERROR;
 
 	if (jsonparse_next(&state) != JSON_TYPE_NUMBER ||
-		jsonparse_get_value_as_int(&state) != FORECAST_DAYS)
+		jsonparse_get_value_as_int(&state) != count)
 		return ERROR;
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "list"))
+			1, JSON_TYPE_PAIR_NAME, "list", 0))
 		return ERROR;
 
 	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_ARRAY, NULL))
+			2, JSON_TYPE_ARRAY, NULL, 0))
 		return ERROR;
 
 	int i;
-	for (i = 0; i < FORECAST_DAYS; i++)
+	for (i = 0; i < count; i++)
 	{
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_OBJECT, NULL))
-			return ERROR;
+//		if (!jumpToNextType(&state, buf, sizeof(buf),
+//				3, JSON_TYPE_OBJECT, NULL), 0)
+//			return ERROR;
 
 		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "dt"))
+				3, JSON_TYPE_PAIR_NAME, "dt", 0))
 			return ERROR;
 
 		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
@@ -190,57 +219,119 @@ int ICACHE_FLASH_ATTR parseForecast(char *data, Forecast *forecast)
 		debug("forecast[%d] dt: %s\n", i, buf);
 
 		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "temp"))
+				3, JSON_TYPE_PAIR_NAME, tempObj, 0))
+			return ERROR;
+
+//		if (!jumpToNextType(&state, buf, sizeof(buf),
+//				4, JSON_TYPE_OBJECT, NULL, 0))
+//			return ERROR;
+
+		switch (forecastType)
+		{
+		case eForecastHourly:
+			if (!jumpToNextType(&state, buf, sizeof(buf),
+					4, JSON_TYPE_PAIR_NAME, "temp", 0))
+				return ERROR;
+
+			if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
+				return ERROR;
+
+			jsonparse_copy_value(&state, buf, sizeof(buf));
+			forecast[i].temp = strtofloat(buf);
+			debug("forecast[%d] temp: %s\n", i, buf);
+			break;
+		case eForecastDaily:
+			if (!jumpToNextType(&state, buf, sizeof(buf),
+					4, JSON_TYPE_PAIR_NAME, "min", 0))
+				return ERROR;
+
+			if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
+				return ERROR;
+
+			jsonparse_copy_value(&state, buf, sizeof(buf));
+			forecast[i].minTemp = strtofloat(buf);
+			debug("forecast[%d] min: %s\n", i, buf);
+
+			if (!jumpToNextType(&state, buf, sizeof(buf),
+					4, JSON_TYPE_PAIR_NAME, "max", 0))
+				return ERROR;
+
+			if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
+				return ERROR;
+
+			jsonparse_copy_value(&state, buf, sizeof(buf));
+			forecast[i].maxTemp = strtofloat(buf);
+			debug("forecast[%d] max: %s\n", i, buf);
+			break;
+		}
+
+		if (!jumpToNextType(&state, buf, sizeof(buf),
+				3, JSON_TYPE_PAIR_NAME, "weather", 0))
 			return ERROR;
 
 		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_OBJECT, NULL))
+				4, JSON_TYPE_ARRAY, NULL, 0))
 			return ERROR;
+
+//		if (!jumpToNextType(&state, buf, sizeof(buf),
+//				5, JSON_TYPE_OBJECT, NULL, 0))
+//			return ERROR;
 
 		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_PAIR_NAME, "min"))
-			return ERROR;
-
-		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-			return ERROR;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		forecast[i].minTemp = strtofloat(buf);
-		debug("forecast[%d] min: %s\n", i, buf);
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_PAIR_NAME, "max"))
-			return ERROR;
-
-		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-			return ERROR;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		forecast[i].maxTemp = strtofloat(buf);
-		debug("forecast[%d] max: %s\n", i, buf);
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "weather"))
-			return ERROR;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_ARRAY, NULL))
-			return ERROR;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				5, JSON_TYPE_OBJECT, NULL))
-			return ERROR;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				5, JSON_TYPE_PAIR_NAME, "icon"))
+				5, JSON_TYPE_PAIR_NAME, "icon", 0))
 			return ERROR;
 
 		if (jsonparse_next(&state) != JSON_TYPE_STRING)
 			return ERROR;
 
 		jsonparse_copy_value(&state, buf, sizeof(buf));
-		forecast[i].icon = iconIdToImage(buf, 0);
 		debug("forecast[%d] icon: %s\n", i, buf);
+		if (os_strlen(buf) < sizeof(forecast[i].icon))
+		{
+			os_strcpy(forecast[i].icon, buf);
+		}
+		else
+		{
+			os_strcpy(forecast[i].icon, "");
+		}
+		//forecast[i].icon = iconIdToImage(buf, 0);
+
+		forecast[i].rainsnow = 0;
+		switch (forecastType)
+		{
+		case eForecastHourly:
+			while (jumpToNextType2(&state, buf, sizeof(buf),
+					3, JSON_TYPE_PAIR_NAME, "rain", "snow", 1))
+			{
+//				if (jumpToNextType(&state, buf, sizeof(buf),
+//						4, JSON_TYPE_OBJECT, NULL, 1))
+//				{
+					if (jumpToNextType(&state, buf, sizeof(buf),
+							4, JSON_TYPE_PAIR_NAME, "3h", 1))
+					{
+						if (jsonparse_next(&state) == JSON_TYPE_NUMBER)
+						{
+							jsonparse_copy_value(&state, buf, sizeof(buf));
+							forecast[i].rainsnow += strtofloat(buf);
+							debug("forecast[%d] rain: %s\n", i, buf);
+						}
+					}
+//				}
+			}
+			break;
+		case eForecastDaily:
+			while (jumpToNextType2(&state, buf, sizeof(buf),
+					3, JSON_TYPE_PAIR_NAME, "rain", "snow", 1))
+			{
+				if (jsonparse_next(&state) == JSON_TYPE_NUMBER)
+				{
+					jsonparse_copy_value(&state, buf, sizeof(buf));
+					forecast[i].rainsnow += strtofloat(buf);
+					debug("forecast[%d] rain: %s\n", i, buf);
+				}
+			}
+			break;
+		}
 	}
 	return OK;
 }

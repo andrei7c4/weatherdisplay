@@ -23,6 +23,8 @@ void ICACHE_FLASH_ATTR configInit(Config *config)
 	config->utcoffset = 0;
 	config->tempoffset = 0;
 	config->interval = 30UL*60UL*1000000UL;
+	config->chart = 0;
+	config->fahrenheit = 0;
 	config->debug = FALSE;
 }
 
@@ -196,6 +198,37 @@ LOCAL int ICACHE_FLASH_ATTR setInterval(const char *value, uint valueLen)
 	return OK;
 }
 
+LOCAL int ICACHE_FLASH_ATTR setChart(const char *value, uint valueLen)
+{
+	if (!value || !*value || !valueLen)
+		return ERROR;
+
+	uint chart = strtoint(value);
+	if (chart < 0 || chart > 3)
+		return ERROR;
+
+	config.chart = chart;
+	return OK;
+}
+
+LOCAL int ICACHE_FLASH_ATTR setFahrenheit(const char *value, uint valueLen)
+{
+	if (!value || !*value || !valueLen)
+		return ERROR;
+
+	switch (value[0])
+	{
+	case '0':
+		config.fahrenheit = FALSE;
+		return OK;
+	case '1':
+		config.fahrenheit = TRUE;
+		return OK;
+	default:
+		return ERROR;
+	}
+}
+
 LOCAL int ICACHE_FLASH_ATTR setDebug(const char *value, uint valueLen)
 {
 	if (!value || !*value || !valueLen)
@@ -204,7 +237,7 @@ LOCAL int ICACHE_FLASH_ATTR setDebug(const char *value, uint valueLen)
 	switch (value[0])
 	{
 	case '0':
-		config.debug = 0;
+		config.debug = FALSE;
 		return OK;
 	case '1':
 		config.debug = TRUE;
@@ -249,6 +282,8 @@ CmdEntry commands[] = {
 	{"utc", setUtcoffset},
 	{"temp", setTempoffset},
 	{"interval", setInterval},
+	{"chart", setChart},
+	{"fahrenheit", setFahrenheit},
 	{"debug", setDebug},
 	{"reset", resetConfig},
 	{"clear", clearDisp}

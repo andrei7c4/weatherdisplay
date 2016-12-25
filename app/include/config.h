@@ -30,6 +30,8 @@ typedef struct{
 	int utcoffset;
 	float tempoffset;
 	uint interval;
+	uint chart;
+	uint fahrenheit;
 	uint debug;
 }Config;
 extern Config config;

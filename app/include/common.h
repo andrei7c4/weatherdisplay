@@ -8,18 +8,24 @@ typedef struct CurWeather_t
 	uint datetime;
 	float temperature;
 	char description[32];
-	const uint *icon;
+	//const uint *icon;
+	char icon[4];
 }CurWeather;
 
 typedef struct Forecast_t
 {
 	uint datetime;
+	float temp;
 	float minTemp;
 	float maxTemp;
-	const uint *icon;
+	float rainsnow;
+	//const uint *icon;
+	char icon[4];
 }Forecast;
 
-#define FORECAST_DAYS	5
+typedef enum {eForecastHourly=1, eForecastDaily} ForecastType;
 
+#define FORECAST_HOURLY_CNT	9
+#define FORECAST_DAILY_CNT	6
 
 #endif /* INCLUDE_COMMON_H_ */

@@ -1,5 +1,6 @@
 #include <os_type.h>
 #include <osapi.h>
+#include "config.h"
 
 int ICACHE_FLASH_ATTR strtoint(const char *p)
 {
@@ -66,3 +67,18 @@ float ICACHE_FLASH_ATTR strtofloat(const char* num)
      return sign * (integerPart + fractionPart/divisorForFraction);
 }
 
+
+int ICACHE_FLASH_ATTR floatToIntRound(float f)
+{
+	return f >= 0 ? (int)(f+0.5) : (int)(f-0.5);
+}
+
+float ICACHE_FLASH_ATTR kelvinToTemp(float kelvin)
+{
+	const float zeroKelvin = 273.15;
+	if (config.fahrenheit)
+	{
+		return (kelvin-zeroKelvin) * 1.8 + 32.0;
+	}
+	return kelvin-zeroKelvin;
+}

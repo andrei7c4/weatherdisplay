@@ -169,6 +169,13 @@ int ICACHE_FLASH_ATTR dispDrawStrCentred(const uint **font, int centre, int y, c
 	return dispDrawStr(font, x, y, str);
 }
 
+int ICACHE_FLASH_ATTR dispDrawStrAlignRight(const uint **font, int right, int y, const char *str)
+{
+	int strWidth = dispStrWidth(font, str);
+	int x = right-strWidth;
+	return dispDrawStr(font, x, y, str);
+}
+
 
 void ICACHE_FLASH_ATTR dispDrawPixel(int x, int y, char color)
 {
@@ -203,6 +210,103 @@ void ICACHE_FLASH_ATTR dispDrawLine(int x0, int y0, int x1, int y1, char color)
         if (e2 >-dx) { err -= dy; x0 += sx; }
         if (e2 < dy) { err += dx; y0 += sy; }
     }
+}
+
+void ICACHE_FLASH_ATTR dispDrawcircle(int x0, int y0, int radius, char color, char fill)
+{
+    int x = radius;
+    int y = 0;
+    int err = 0;
+
+    while (x >= y)
+    {
+    	if (fill)
+    	{
+    		dispDrawLine(x0 - x, y0 + y, x0 + x, y0 + y, color);
+    		dispDrawLine(x0 - y, y0 + x, x0 + y, y0 + x, color);
+    		dispDrawLine(x0 - x, y0 - y, x0 + x, y0 - y, color);
+    		dispDrawLine(x0 - y, y0 - x, x0 + y, y0 - x, color);
+    	}
+    	else
+    	{
+            dispDrawPixel(x0 + x, y0 + y, color);
+            dispDrawPixel(x0 + y, y0 + x, color);
+            dispDrawPixel(x0 - y, y0 + x, color);
+            dispDrawPixel(x0 - x, y0 + y, color);
+            dispDrawPixel(x0 - x, y0 - y, color);
+            dispDrawPixel(x0 - y, y0 - x, color);
+            dispDrawPixel(x0 + y, y0 - x, color);
+            dispDrawPixel(x0 + x, y0 - y, color);
+    	}
+
+        if (err <= 0)
+        {
+            y += 1;
+            err += 2*y + 1;
+        }
+        if (err > 0)
+        {
+            x -= 1;
+            err -= 2*x + 1;
+        }
+    }
+}
+
+void ICACHE_FLASH_ATTR dispDrawLineBold(int x0, int y0, int x1, int y1, char color, char boldX, char boldY)
+{
+	dispDrawLine(x0, y0, x1, y1, color);
+	if (boldX)
+	{
+		dispDrawLine(x0-1, y0, x1-1, y1, color);
+		dispDrawLine(x0+1, y0, x1+1, y1, color);
+	}
+	if (boldY)
+	{
+		dispDrawLine(x0, y0-1, x1, y1-1, color);
+		dispDrawLine(x0, y0+1, x1, y1+1, color);
+	}
+}
+
+void ICACHE_FLASH_ATTR dispDrawLineDotted(int x0, int y0, int x1, int y1, int space, char color)
+{
+    int dx = abs(x1-x0), sx = x0<x1 ? 1 : -1;
+    int dy = abs(y1-y0), sy = y0<y1 ? 1 : -1;
+    int err = (dx>dy ? dx : -dy)/2, e2;
+    int i = 0;
+    if (space < 1)
+    {
+    	space = 1;
+    }
+
+    for(;;)
+    {
+    	if (i == space)
+    	{
+    		i = 0;
+    	}
+    	else
+    	{
+        	if (i == 0)
+        	{
+        		dispDrawPixel(x0,y0,color);
+        	}
+    		i++;
+    	}
+
+        if (x0==x1 && y0==y1) break;
+        e2 = err;
+        if (e2 >-dx) { err -= dy; x0 += sx; }
+        if (e2 < dy) { err += dx; y0 += sy; }
+    }
+}
+
+void ICACHE_FLASH_ATTR dispDrawRectDotted(int x0, int y0, int x1, int y1, int space, char color)
+{
+	int x;
+	for (x = x0; x <= x1; x+=(space+1))
+	{
+		dispDrawLineDotted(x, y0, x, y1, space, color);
+	}
 }
 
 //-------------------------------------------------------------------------------------------

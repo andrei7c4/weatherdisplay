@@ -36,7 +36,8 @@ ip_addr_t serverIp;
 LOCAL os_timer_t timeoutTmr;
 
 CurWeather curWeather;
-Forecast forecast[FORECAST_DAYS];
+Forecast forecastDaily[FORECAST_DAILY_CNT];
+Forecast forecastHourly[FORECAST_HOURLY_CNT];
 char indoorTemp[8] = "";
 struct tm *curTime = NULL;
 
@@ -51,7 +52,8 @@ typedef enum{
 	stateGetOwmIp,
 	stateConnectToOwm,
 	stateGetWeather,
-	stateGetForecast,
+	stateGetHourlyForecast,
+	stateGetDailyForecast,
 	stateGetSparkfunIp,
 	stateConnectToSf,
 	stateSendTempToSf,
@@ -266,13 +268,24 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			retain.cityId[0] ? retain.cityId : config.city,
 			config.appid, openWeatherMapHost);
 		break;
-	case stateGetForecast:
+	case stateGetHourlyForecast:
 		if (!config.appid[0] || !config.city[0])
 			return;
 		os_sprintf(httpMsgTxBuf,
-			"GET /data/2.5/forecast/daily?%s=%s&mode=json&cnt=5&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			"GET /data/2.5/forecast?%s=%s&mode=json&cnt=%d&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
 			retain.cityId[0] ? "id" : "q",
 			retain.cityId[0] ? retain.cityId : config.city,
+			FORECAST_HOURLY_CNT,
+			config.appid, openWeatherMapHost);
+		break;
+	case stateGetDailyForecast:
+		if (!config.appid[0] || !config.city[0])
+			return;
+		os_sprintf(httpMsgTxBuf,
+			"GET /data/2.5/forecast/daily?%s=%s&mode=json&cnt=%d&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			retain.cityId[0] ? "id" : "q",
+			retain.cityId[0] ? retain.cityId : config.city,
+			FORECAST_DAILY_CNT,
 			config.appid, openWeatherMapHost);
 		break;
 	case stateSendTempToSf:
@@ -325,7 +338,9 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDataReceived(void *arg, char *pusrdata, unsign
 LOCAL void ICACHE_FLASH_ATTR onTcpDisconnected(void *arg)
 {
 	debug("onTcpDisconnected\n");
-	if (appState == stateGetWeather || appState == stateGetForecast)
+	if (appState == stateGetWeather ||
+		appState == stateGetHourlyForecast ||
+		appState == stateGetDailyForecast)
 	{
 		debug("reconnect to owm\n");
 		setAppState(stateConnectToOwm);
@@ -354,7 +369,9 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 	httpMsgRxBuf[httpMsgCurLen] = 0;
 
 	//os_printf("%s\n", httpMsgRxBuf);
-	if (appState != stateGetWeather && appState != stateGetForecast)
+	if (appState != stateGetWeather &&
+		appState != stateGetHourlyForecast &&
+		appState != stateGetDailyForecast)
 	{
 		return;
 	}
@@ -374,11 +391,17 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 					msgValid = TRUE;
 					os_timer_disarm(&gpTmr);
 
-					drawCurrentWeather(&curWeather);
-					dispUpdate(eDispTopPart);
-
-					// send forecast request
-					setAppState(stateGetForecast);
+					if (config.chart & eForecastHourly)
+					{
+						drawCurrentWeatherSmall(&curWeather);
+						setAppState(stateGetHourlyForecast);
+					}
+					else
+					{
+						drawCurrentWeather(&curWeather);
+						dispUpdate(eDispTopPart);
+						setAppState(stateGetDailyForecast);
+					}
 					sendHttpRequest();
 				}
 				else
@@ -386,17 +409,43 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 					debug("parseWeather failed\n");
 				}
 			}
-			else if (appState == stateGetForecast)
+			else if (appState == stateGetHourlyForecast)
 			{
-				if (parseForecast(json, forecast) == OK)
+				if (parseForecast(json, forecastHourly, eForecastHourly) == OK)
 				{
 					msgValid = TRUE;
 					os_timer_disarm(&gpTmr);
 
-					drawForecast(forecast);
+					drawHourlyForecastChart(forecastHourly);
+					dispUpdate(eDispTopPart);
+
+					// send daily forecast request
+					setAppState(stateGetDailyForecast);
+					sendHttpRequest();
+				}
+				else
+				{
+					debug("parse forecastHourly failed\n");
+				}
+			}
+			else if (appState == stateGetDailyForecast)
+			{
+				if (parseForecast(json, forecastDaily, eForecastDaily) == OK)
+				{
+					msgValid = TRUE;
+					os_timer_disarm(&gpTmr);
 
 					dispReadTemp(indoorTemp);
-					drawIndoorTemp(indoorTemp);
+					if (config.chart & eForecastDaily)
+					{
+						drawDailyForecastChart(forecastDaily);
+						drawIndoorTempSmall(indoorTemp);
+					}
+					else
+					{
+						drawForecast(forecastDaily);
+						drawIndoorTemp(indoorTemp);
+					}
 
 					curTime = (struct tm*)os_zalloc(sizeof(struct tm));
 					if (epochToTm(curWeather.datetime + config.utcoffset, curTime) != OK)
@@ -426,11 +475,12 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 					else
 					{
 						setAppState(stateWaitDispUpdate);
+						//gotoSleep(TRUE);
 					}
 				}
 				else
 				{
-					debug("parseForecast failed\n");
+					debug("parse forecastDaily failed\n");
 				}
 			}
 		}
