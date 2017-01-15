@@ -16,6 +16,7 @@ void drawIndoorTempSmall(const char *temp);
 
 void drawMetaInfo(struct tm *curTime);
 
+void printTime(struct tm *tm, char *str);
 void epochToWeekday(uint epoch, char *weekday);
 const uint* iconIdToImage(char *iconId, int size);
 

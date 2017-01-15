@@ -1,9 +1,11 @@
 #include <ets_sys.h>
 #include <string.h>
-#include "typedefs.h"
-#include "display.h"
 #include <osapi.h>
 #include <mem.h>
+#include "typedefs.h"
+#include "display.h"
+#include "conv.h"
+
 
 static uchar mem[DISP_HEIGHT][DISP_MEMWIDTH];
 
@@ -154,18 +156,7 @@ int ICACHE_FLASH_ATTR dispDrawStrCentred(const uint **font, int centre, int y, c
 {
 	int strWidth = dispStrWidth(font, str);
 	int x = centre-(strWidth/2);
-	int mod = x%8;	// align to nearest 8 pixel boundary
-	if (mod)
-	{
-		if (mod <= 4)
-		{
-			x -= mod;
-		}
-		else
-		{
-			x += (8-mod);
-		}
-	}
+	x = alignTo8(x);	// align to nearest 8 pixel boundary
 	return dispDrawStr(font, x, y, str);
 }
 

@@ -32,6 +32,7 @@ typedef struct{
 	uint interval;
 	uint chart;
 	uint fahrenheit;
+	uint clock24;
 	uint debug;
 }Config;
 extern Config config;

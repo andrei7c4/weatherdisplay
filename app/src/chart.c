@@ -331,14 +331,32 @@ LOCAL void ICACHE_FLASH_ATTR drawHours(Forecast *forecast, int cnt, int x, int y
 	int xStep = calcXstep(width, cnt, stretchFactor, inc);
 	int xPos = x + xStep/stretchFactor/2;
 	struct tm tm;
-	char str[6];
+	char strbuf[8];
 	int i;
 	for (i = 0; i < cnt; i+=inc)
 	{
 		if (epochToTm(forecast[i].datetime+config.utcoffset, &tm) == OK)
 		{
-			os_sprintf(str, "%2d:%02d", tm.tm_hour, tm.tm_min);
-			dispDrawStrCentred(hoursFont, xPos, y, str);
+			printTime(&tm, strbuf);
+			if (config.clock24)
+			{
+				dispDrawStrCentred(hoursFont, xPos, y, strbuf);
+			}
+			else
+			{
+				// am/pm part is drawn with a smaller font
+				char ampm[3];
+				int timeStrLen = os_strlen(strbuf);
+				os_strcpy(ampm, strbuf+timeStrLen-2);
+				strbuf[timeStrLen-2] = '\0';
+
+				int timeWidth = dispStrWidth(hoursFont, strbuf);
+				int fullWidth = timeWidth + dispStrWidth(arial16, ampm);
+				int strX = xPos-(fullWidth/2);
+				strX = alignTo8(strX);	// align to nearest 8 pixel boundary
+				dispDrawStr(hoursFont, strX, y, strbuf);
+				dispDrawStr(arial16, strX+timeWidth, y+4, ampm);
+			}
 			xPos += xStep;
 		}
 	}

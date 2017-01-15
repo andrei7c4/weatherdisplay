@@ -6,5 +6,6 @@ float strtofloat(const char* num);
 
 float kelvinToTemp(float kelvin);
 int floatToIntRound(float f);
+int alignTo8(int value);
 
 #endif /* INCLUDE_CONV_H_ */

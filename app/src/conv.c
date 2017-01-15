@@ -82,3 +82,21 @@ float ICACHE_FLASH_ATTR kelvinToTemp(float kelvin)
 	}
 	return kelvin-zeroKelvin;
 }
+
+int ICACHE_FLASH_ATTR alignTo8(int value)
+{
+	int mod = value%8;
+	if (mod)
+	{
+		if (mod <= 4)
+		{
+			value -= mod;
+		}
+		else
+		{
+			value += (8-mod);
+		}
+	}
+	return value;
+}
+

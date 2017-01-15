@@ -174,13 +174,40 @@ void ICACHE_FLASH_ATTR drawMetaInfo(struct tm *curTime)
 	char strbuf[20];
 	if (curTime)
 	{
-		os_sprintf(strbuf, "@%02d:%02d", curTime->tm_hour, curTime->tm_min);
+		strbuf[0] = '@';
+		printTime(curTime, strbuf+1);
 		dispDrawStrAlignRight(arial16, DISP_WIDTH, DISP_HEIGHT-30, strbuf);
 	}
 	os_sprintf(strbuf, "fails %u/%u", retain.fails, retain.attempts);
 	dispDrawStrAlignRight(arial16, DISP_WIDTH, DISP_HEIGHT-15, strbuf);
 }
 
+
+void ICACHE_FLASH_ATTR printTime(struct tm *tm, char *str)
+{
+	int am = FALSE;
+	if (config.clock24)
+	{
+		os_sprintf(str, "%2d:%02d", tm->tm_hour, tm->tm_min);
+	}
+	else
+	{
+		if (tm->tm_hour == 0)
+		{
+			tm->tm_hour = 12;
+			am = TRUE;
+		}
+		else if (tm->tm_hour < 12)
+		{
+			am = TRUE;
+		}
+		else if (tm->tm_hour > 12)
+		{
+			tm->tm_hour -= 12;
+		}
+		os_sprintf(str, "%2d:%02d%s", tm->tm_hour, tm->tm_min, am ? "AM":"PM");
+	}
+}
 
 void ICACHE_FLASH_ATTR epochToWeekday(uint epoch, char *weekday)
 {
