@@ -75,4 +75,4 @@ The following user interface options are available:
 Please see the [config.c](app/src/config.c) file for additional supported parameters.
 
 ***
-[![](http://img.youtube.com/vi/pryzzH_i0os/0.jpg)](http://www.youtube.com/watch?v=pryzzH_i0os)
+[![](http://img.youtube.com/vi/MJ9MyOKU_EI/0.jpg)](http://www.youtube.com/watch?v=MJ9MyOKU_EI)
