@@ -17,54 +17,26 @@ int ICACHE_FLASH_ATTR strtoint(const char *p)
      return k*sign;
 }
 
-float ICACHE_FLASH_ATTR strtofloat(const char* num)
+float ICACHE_FLASH_ATTR strtofloat(const char* s)
 {
-     if (!num || !*num)
-         return 0;
-     float integerPart = 0;
-     float fractionPart = 0;
-     int divisorForFraction = 1;
-     int sign = 1;
-     int inFraction = 0;
-     /*Take care of +/- sign*/
-     if (*num == '-')
-     {
-         ++num;
-         sign = -1;
-     }
-     else if (*num == '+')
-     {
-         ++num;
-     }
-     while (*num != '\0')
-     {
-         if (*num >= '0' && *num <= '9')
-         {
-             if (inFraction)
-             {
-                 /*See how are we converting a character to integer*/
-                 fractionPart = fractionPart*10 + (*num - '0');
-                 divisorForFraction *= 10;
-             }
-             else
-             {
-                 integerPart = integerPart*10 + (*num - '0');
-             }
-         }
-         else if (*num == '.')
-         {
-             if (inFraction)
-                 return sign * (integerPart + fractionPart/divisorForFraction);
-             else
-                 inFraction = 1;
-         }
-         else
-         {
-             return sign * (integerPart + fractionPart/divisorForFraction);
-         }
-         ++num;
-     }
-     return sign * (integerPart + fractionPart/divisorForFraction);
+  float rez = 0, fact = 1;
+  int point_seen = 0;
+  if (*s == '-'){
+	s++;
+	fact = -1;
+  };
+  for (; *s; s++){
+	if (*s == '.'){
+	  point_seen = 1;
+	  continue;
+	};
+	int d = *s - '0';
+	if (d >= 0 && d <= 9){
+	  if (point_seen) fact /= 10.0f;
+	  rez = rez * 10.0f + (float)d;
+	};
+  };
+  return rez * fact;
 }
 
 
