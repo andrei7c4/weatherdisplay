@@ -4,7 +4,7 @@
 #include <stdarg.h>
 int ets_vsnprintf(char *buffer, size_t sizeOfBuffer,  const char *format, va_list argptr);
 
-//#define NDEBUG
+#define NDEBUG
 
 #ifdef NDEBUG
 #define debug(format, args...) ((void)0)
