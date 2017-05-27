@@ -33,7 +33,7 @@ typedef struct{
 	uint chart;
 	uint fahrenheit;
 	uint clock24;
-	uint debug;
+	uint debugEn;
 }Config;
 extern Config config;
 

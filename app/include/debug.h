@@ -1,17 +1,17 @@
-#ifndef INCLUDE_DEBUG_H_
-#define INCLUDE_DEBUG_H_
+#ifndef DEBUG_H
+#define DEBUG_H
 
-#include <stdarg.h>
-int ets_vsnprintf(char *buffer, size_t sizeOfBuffer,  const char *format, va_list argptr);
+#include <osapi.h>
+#include "config.h"
 
 #define NDEBUG
 
-#ifdef NDEBUG
-#define debug(format, args...) ((void)0)
+#ifndef NDEBUG
+#define debug(...) \
+            do { if (config.debugEn) os_printf(__VA_ARGS__); } while (0)
 #else
-void debug(char *format, ...);
+#define debug(...)
 #endif
 
 
-
-#endif /* INCLUDE_DEBUG_H_ */
+#endif /* DEBUG_H */

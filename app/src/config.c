@@ -26,7 +26,7 @@ void ICACHE_FLASH_ATTR configInit(Config *config)
 	config->chart = 0;
 	config->fahrenheit = FALSE;
 	config->clock24 = TRUE;
-	config->debug = FALSE;
+	config->debugEn = FALSE;
 }
 
 void ICACHE_FLASH_ATTR configRead(Config *config)
@@ -34,13 +34,13 @@ void ICACHE_FLASH_ATTR configRead(Config *config)
 	spi_flash_read(CONFIG_SAVE_FLASH_ADDR, (uint*)config, sizeof(Config));
 	if (config->magic != VALID_MAGIC_NUMBER)
 	{
-		debug("no valid config in flash\n");
+		os_printf("no valid config in flash\n");
 		configInit(config);
 		configWrite(config);
 	}
 	else
 	{
-		debug("valid config found\n");
+		os_printf("valid config found\n");
 	}
 }
 
@@ -62,13 +62,13 @@ void retainRead(Retain *retain)
 	system_rtc_mem_read(RTC_USER_DATA_ADDR, (uint*)retain, sizeof(Retain));
 	if (retain->magic != VALID_MAGIC_NUMBER)
 	{
-		debug("no valid retain found\n");
+		os_printf("no valid retain found\n");
 		retainInit(retain);
 		retainWrite(retain);
 	}
 	else
 	{
-		debug("valid retain found\n");
+		os_printf("valid retain found\n");
 	}
 }
 
@@ -256,10 +256,10 @@ LOCAL int ICACHE_FLASH_ATTR setDebug(const char *value, uint valueLen)
 	switch (value[0])
 	{
 	case '0':
-		config.debug = FALSE;
+		config.debugEn = FALSE;
 		return OK;
 	case '1':
-		config.debug = TRUE;
+		config.debugEn = TRUE;
 		return OK;
 	default:
 		return ERROR;

@@ -368,7 +368,7 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 	debug("parseHttpReply %d\n", httpMsgCurLen);
 	httpMsgRxBuf[httpMsgCurLen] = 0;
 
-	//os_printf("%s\n", httpMsgRxBuf);
+	//debug("%s\n", httpMsgRxBuf);
 	if (appState != stateGetWeather &&
 		appState != stateGetHourlyForecast &&
 		appState != stateGetDailyForecast)
