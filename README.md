@@ -2,7 +2,7 @@
 
 This is a simple weather display built with ESP8266 WiFi chip and 7.4" E ink display from Pervasive Displays. Weather data is gathered from [OpenWeatherMap](http://openweathermap.org) service. Additionally, the device’s internal temperature sensor reading is sent to [data.sparkfun.com](https://data.sparkfun.com) service.
 
-Most of the time the device stays in deep sleep mode consuming only 18 µA. While updating the weather power consumption varies from 80 to 150 mA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With 30 minute update interval 3000 mAh battery should last for a few months on one charge.
+Most of the time the device stays in deep sleep mode consuming only 18 µA. While updating the weather power consumption varies from 80 to 150 mA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With update interval set to 15 minutes the device has been working on a single charge for more than a year. Battery capacity is 3000 mAh.
 
 ## Building the software
 ### On Linux
@@ -75,4 +75,4 @@ The following user interface options are available:
 Please see the [config.c](app/src/config.c) file for additional supported parameters.
 
 ***
-[![](http://img.youtube.com/vi/MJ9MyOKU_EI/0.jpg)](http://www.youtube.com/watch?v=MJ9MyOKU_EI)
+[![](http://img.youtube.com/vi/9eWtP8rnsAE/sddefault.jpg)](https://youtu.be/9eWtP8rnsAE)
