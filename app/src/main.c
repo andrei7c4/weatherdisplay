@@ -20,31 +20,31 @@
 
 
 
-const char openWeatherMapHost[] = "api.openweathermap.org";
-const char sparkfunHost[] = "data.sparkfun.com";
-const char sfFieldName[] = "temp";
+LOCAL const char *openWeatherMapHost = "api.openweathermap.org";
+LOCAL const char *thingSpeakHost = "api.thingspeak.com";
+LOCAL const char *tsFieldName = "field1";
 
 #define HTTP_MSG_MAX_LEN	4096
-char httpMsgRxBuf[HTTP_MSG_MAX_LEN];
-char httpMsgTxBuf[200];
-int httpMsgCurLen = 0;
+LOCAL char httpMsgRxBuf[HTTP_MSG_MAX_LEN];
+LOCAL char httpMsgTxBuf[200];
+LOCAL int httpMsgCurLen = 0;
 
 LOCAL os_timer_t gpTmr;
 LOCAL struct espconn tcpSock;
 LOCAL struct _esp_tcp tcpSockParams;
-ip_addr_t serverIp;
+LOCAL ip_addr_t serverIp;
 LOCAL os_timer_t timeoutTmr;
 
-CurWeather curWeather;
-Forecast forecastDaily[FORECAST_DAILY_CNT];
-Forecast forecastHourly[FORECAST_HOURLY_CNT];
-char indoorTemp[8] = "";
-struct tm *curTime = NULL;
+LOCAL CurWeather curWeather;
+LOCAL Forecast forecastDaily[FORECAST_DAILY_CNT];
+LOCAL Forecast forecastHourly[FORECAST_HOURLY_CNT];
+LOCAL char indoorTemp[8] = "";
+LOCAL struct tm *curTime = NULL;
 
-int dispUpdateDone = FALSE;
-const uint sleepTimeLong = 60UL*60UL*1000000UL;
+LOCAL int dispUpdateDone = FALSE;
+LOCAL const uint sleepTimeLong = 60UL*60UL*1000000UL;
 
-const uint dnsCheckInterval = 100;
+LOCAL const uint dnsCheckInterval = 100;
 
 typedef enum{
 	stateInit,
@@ -54,13 +54,13 @@ typedef enum{
 	stateGetWeather,
 	stateGetHourlyForecast,
 	stateGetDailyForecast,
-	stateGetSparkfunIp,
-	stateConnectToSf,
-	stateSendTempToSf,
+	stateGetThingSpeakIp,
+	stateConnectToTs,
+	stateSendTempToTs,
 	stateWaitDispUpdate,
 	stateGotoSleep
 }AppState;
-AppState appState = stateInit;
+LOCAL AppState appState = stateInit;
 
 LOCAL void ICACHE_FLASH_ATTR setAppState(AppState newState)
 {
@@ -94,7 +94,7 @@ void user_init(void)
 	os_timer_setfn(&timeoutTmr, (os_timer_func_t *)timeoutTmrCb, NULL);
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
-	
+
 	retainRead(&retain);
 	if (retain.longSleepCnt > 0)
 	{
@@ -105,7 +105,7 @@ void user_init(void)
 		return;
 	}
 	configRead(&config);
-	
+
 	debug("Built on %s %s\n", __DATE__, __TIME__);
 	debug("SDK version %s\n", system_get_sdk_version());
 	debug("attempts %u, fails %u, retry %u\n", retain.attempts, retain.fails, retain.retry);
@@ -193,9 +193,9 @@ LOCAL void ICACHE_FLASH_ATTR checkDnsStatus(void *arg)
 		espconn_gethostbyname(pespconn, openWeatherMapHost, &serverIp, getHostByNameCb);
 		os_timer_arm(&gpTmr, dnsCheckInterval, 0);		
     }
-    else if (appState == stateGetSparkfunIp)
+    else if (appState == stateGetThingSpeakIp)
     {
-		espconn_gethostbyname(pespconn, sparkfunHost, &serverIp, getHostByNameCb);
+		espconn_gethostbyname(pespconn, thingSpeakHost, &serverIp, getHostByNameCb);
 		os_timer_arm(&gpTmr, dnsCheckInterval, 0);		
     }
 }
@@ -217,7 +217,7 @@ LOCAL void ICACHE_FLASH_ATTR getHostByNameCb(const char *name, ip_addr_t *ipaddr
 	}
 	debug("getHostByNameCb ip: "IPSTR"\n", IP2STR(ipaddr));
 	
-	setAppState((appState == stateGetOwmIp) ? stateConnectToOwm : stateConnectToSf);
+	setAppState((appState == stateGetOwmIp) ? stateConnectToOwm : stateConnectToTs);
 
 	// connect to server
 	serverIp.addr = ipaddr->addr;
@@ -247,10 +247,10 @@ LOCAL void ICACHE_FLASH_ATTR onTcpConnected(void *arg)
 		setAppState(stateGetWeather);
 		sendHttpRequest();
 	}
-	else if (appState == stateConnectToSf)
+	else if (appState == stateConnectToTs)
 	{
-		// send indoor temp to sparkfun
-		setAppState(stateSendTempToSf);
+		// send indoor temp to ThingSpeak
+		setAppState(stateSendTempToTs);
 		sendHttpRequest();
 	}
 }
@@ -288,12 +288,12 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			FORECAST_DAILY_CNT,
 			config.appid, openWeatherMapHost);
 		break;
-	case stateSendTempToSf:
-		if (!config.publickey[0] || !config.privatekey[0])
+	case stateSendTempToTs:
+		if (!config.tsApiKey[0])
 			return;
 		os_sprintf(httpMsgTxBuf,
-			"GET /input/%s?private_key=%s&%s=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			config.publickey, config.privatekey, sfFieldName, indoorTemp, sparkfunHost);
+			"GET /update?api_key=%s&%s=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
+			config.tsApiKey, tsFieldName, indoorTemp, thingSpeakHost);
 		break;
 	default: return;
 	}
@@ -305,7 +305,7 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 LOCAL void ICACHE_FLASH_ATTR onTcpDataSent(void *arg)
 {
 	debug("onTcpDataSent\n");
-	if (appState == stateSendTempToSf)
+	if (appState == stateSendTempToTs)
 	{
 		if (!dispUpdateDone)
 		{
@@ -346,10 +346,10 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDisconnected(void *arg)
 		setAppState(stateConnectToOwm);
 		espconn_connect(&tcpSock);
 	}
-	else if (appState == stateSendTempToSf)
+	else if (appState == stateSendTempToTs)
 	{
-		debug("reconnect to sf\n");
-		setAppState(stateConnectToSf);
+		debug("reconnect to ts\n");
+		setAppState(stateConnectToTs);
 		espconn_connect(&tcpSock);
 	}
 }
@@ -457,17 +457,17 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 					dispUpdate(eDispBottomPart);
 					// dispUpdateDoneCb will be called later
 
-					if (config.publickey[0] && config.privatekey[0])
+					if (config.tsApiKey[0])
 					{
-						setAppState(stateGetSparkfunIp);
+						setAppState(stateGetThingSpeakIp);
 
 						espconn_disconnect(&tcpSock);
 						tcpSock.type = ESPCONN_TCP;
 						tcpSock.state = ESPCONN_NONE;
 
-						// get sparkfun server ip
+						// get ThingSpeak server ip
 						serverIp.addr = 0;
-						espconn_gethostbyname(&tcpSock, sparkfunHost, &serverIp, getHostByNameCb);
+						espconn_gethostbyname(&tcpSock, thingSpeakHost, &serverIp, getHostByNameCb);
 
 						os_timer_setfn(&gpTmr, (os_timer_func_t *)checkDnsStatus, &tcpSock);
 						os_timer_arm(&gpTmr, dnsCheckInterval, 0);

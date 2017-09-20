@@ -10,8 +10,7 @@
 #define DEFAULT_PASS	""
 #define DEFAULT_CITY	""
 #define DEFAULT_APPID	""
-#define DEFAULT_SP_PUBLICKEY	""
-#define DEFAULT_SP_PRIVATEKEY	""
+#define DEFAULT_TS_KEY	""
 
 #define CONFIG_SAVE_FLASH_SECTOR	0x3C
 #define CONFIG_SAVE_FLASH_ADDR		(CONFIG_SAVE_FLASH_SECTOR * SPI_FLASH_SEC_SIZE)
@@ -25,8 +24,7 @@ typedef struct{
 	char city[24];
 	char cityDisplayed[24];
 	char appid[36];
-	char publickey[24];
-	char privatekey[24];
+	char tsApiKey[24];
 	int utcoffset;
 	float tempoffset;
 	uint interval;

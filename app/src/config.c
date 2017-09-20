@@ -18,8 +18,7 @@ void ICACHE_FLASH_ATTR configInit(Config *config)
 	os_strcpy(config->city, DEFAULT_CITY);
 	os_strcpy(config->cityDisplayed, DEFAULT_CITY);
 	os_strcpy(config->appid, DEFAULT_APPID);
-	os_strcpy(config->publickey, DEFAULT_SP_PUBLICKEY);
-	os_strcpy(config->privatekey, DEFAULT_SP_PRIVATEKEY);
+	os_strcpy(config->tsApiKey, DEFAULT_TS_KEY);
 	config->utcoffset = 0;
 	config->tempoffset = 0;
 	config->interval = 30UL*60UL*1000000UL;
@@ -154,14 +153,9 @@ LOCAL int ICACHE_FLASH_ATTR setAppid(const char *value, uint valueLen)
 	return setParam(config.appid, sizeof(config.appid), value, valueLen);
 }
 
-LOCAL int ICACHE_FLASH_ATTR setPublickey(const char *value, uint valueLen)
+LOCAL int ICACHE_FLASH_ATTR setThingSpeakKey(const char *value, uint valueLen)
 {
-	return setParam(config.publickey, sizeof(config.publickey), value, valueLen);
-}
-
-LOCAL int ICACHE_FLASH_ATTR setPrivatekey(const char *value, uint valueLen)
-{
-	return setParam(config.privatekey, sizeof(config.privatekey), value, valueLen);
+	return setParam(config.tsApiKey, sizeof(config.tsApiKey), value, valueLen);
 }
 
 LOCAL int ICACHE_FLASH_ATTR setUtcoffset(const char *value, uint valueLen)
@@ -296,8 +290,7 @@ CmdEntry commands[] = {
 	{"city", setCity},
 	{"citydisp", setCitydisp},
 	{"appid", setAppid},
-	{"publickey", setPublickey},
-	{"privatekey", setPrivatekey},
+	{"thingspeak", setThingSpeakKey},
 	{"utc", setUtcoffset},
 	{"temp", setTempoffset},
 	{"interval", setInterval},

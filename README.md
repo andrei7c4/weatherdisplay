@@ -1,6 +1,6 @@
 # ESP8266 Weather display
 
-This is a simple weather display built with ESP8266 WiFi chip and 7.4" E ink display from Pervasive Displays. Weather data is gathered from [OpenWeatherMap](http://openweathermap.org) service. Additionally, the device’s internal temperature sensor reading is sent to [data.sparkfun.com](https://data.sparkfun.com) service.
+This is a simple weather display built with ESP8266 WiFi chip and 7.4" E ink display from Pervasive Displays. Weather data is gathered from [OpenWeatherMap](http://openweathermap.org) service. Additionally, the device’s internal temperature sensor reading is sent to [ThingSpeak](https://thingspeak.com) service.
 
 Most of the time the device stays in deep sleep mode consuming only 18 µA. While updating the weather power consumption varies from 80 to 150 mA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With update interval set to 15 minutes the device has been working on a single charge for more than a year. Battery capacity is 3000 mAh.
 
@@ -60,11 +60,10 @@ At least the following parameters must be set by the user:
  - city - Weather and forecast are shown for that city ([check supported city names](http://openweathermap.org/find))
  - appid - [OpenWeatherMap API key](http://openweathermap.org/appid) 
 
-Additionally, [data.sparkfun.com](https://data.sparkfun.com) service keys can be set:
- - publickey
- - privatekey
+Additionally, [ThingSpeak](https://thingspeak.com) channel Write API Key can be set:
+ - thingspeak
 
-If these keys are not set, internal temperature will only be shown on the display but not sent anywhere. 
+If this key is not set, internal temperature will only be shown on the display but not sent anywhere. 
 
 The following user interface options are available:
  - chart:0 - [No forecast charts (icons only)](gui/chart0.png)
