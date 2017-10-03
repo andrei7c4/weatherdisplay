@@ -43,12 +43,5 @@ extern const unsigned int icon64_50n[];
 extern const unsigned int indoorTempIcon40[];
 extern const unsigned int indoorTempIcon64[];
 
-typedef struct
-{
-	char id[4];
-	const uint *icon;
-}IconIdPair;
-
-#define NR_ICONS	18
 
 #endif /* INCLUDE_ICONS_H_ */

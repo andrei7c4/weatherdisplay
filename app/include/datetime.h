@@ -15,7 +15,7 @@ struct tm
 };
 
 int epochToTm(long long t, struct tm *tm);
-
+int epochToHours(long long t);
 
 
 #endif /* INCLUDE_DATETIME_H_ */

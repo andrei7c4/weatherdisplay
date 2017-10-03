@@ -101,7 +101,7 @@ void ICACHE_FLASH_ATTR drawCurrentWeatherSmall(CurWeather *curWeather)
 }
 
 
-void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast)
+void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast, int count)
 {
 	const int iconWidth = 128;
 	const int iconX[3] = {16, 176, 336};
@@ -116,19 +116,26 @@ void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast)
 	dispFillMem(0x00);
 	dispDrawLine(0, 0, DISP_WIDTH-1, 0, 1);
 
-	dispDrawStrCentred(arial32, textCentre[0], weekdayY, "Today");
-	dispDrawStrCentred(arial32, textCentre[1], weekdayY, "Tomorrow");
-
-	epochToWeekday(forecast[2].datetime, strbuf);
-	dispDrawStrCentred(arial32, textCentre[2], weekdayY, strbuf);
-
-	int i;
-	for (i = 0; i < 3; i++)
+	int i, days = MIN(count, 3);
+	for (i = 0; i < days; i++)
 	{
+		switch (i)
+		{
+		case 0:
+			os_strcpy(strbuf, "Today");
+			break;
+		case 1:
+			os_strcpy(strbuf, "Tomorrow");
+			break;
+		case 2:
+			epochToWeekday(forecast[2].datetime, strbuf);
+			break;
+		}
+		dispDrawStrCentred(arial32, textCentre[i], weekdayY, strbuf);
 		dispDrawImage(iconX[i], iconY, iconIdToImage(forecast[i].icon, 128));
 
-		int tempMin = floatToIntRound(kelvinToTemp(forecast[i].minTemp));
-		int tempMax = floatToIntRound(kelvinToTemp(forecast[i].maxTemp));
+		int tempMin = floatToIntRound(kelvinToTemp(forecast[i].temp.min));
+		int tempMax = floatToIntRound(kelvinToTemp(forecast[i].temp.max));
 		if (tempMin > -100 && tempMin < 100 &&
 			tempMax > -100 && tempMax < 100)	// some sense
 		{
@@ -139,17 +146,20 @@ void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast)
 }
 
 #define CHART_HEIGHT	220
-void ICACHE_FLASH_ATTR drawHourlyForecastChart(Forecast *forecast)
+void ICACHE_FLASH_ATTR drawHourlyForecastChart(Forecast *forecast, int count)
 {
-	drawForecastChart(forecast, eForecastHourly, FORECAST_HOURLY_CNT,
+	drawForecastChart(forecast, eHourlyChart, MIN(FORECAST_HOURLY_CHART_CNT, count),
 						0, 80, DISP_WIDTH, CHART_HEIGHT);
 }
 
-void ICACHE_FLASH_ATTR drawDailyForecastChart(Forecast *forecast)
+void ICACHE_FLASH_ATTR drawDailyForecastChart(Forecast *forecast, int count)
 {
 	dispFillMem(0x00);
-	drawForecastChart(forecast+1, eForecastDaily, FORECAST_DAILY_CNT-1,
-						0, 20, DISP_WIDTH, CHART_HEIGHT);
+	if (count > 1)
+	{
+		drawForecastChart(forecast+1, eDailyChart, count-1,
+							0, 20, DISP_WIDTH, CHART_HEIGHT);
+	}
 }
 
 
@@ -231,93 +241,56 @@ void ICACHE_FLASH_ATTR epochToWeekday(uint epoch, char *weekday)
 	}
 }
 
-const uint* ICACHE_FLASH_ATTR iconIdToImage(char *iconId, int size)
+
+
+
+
+
+typedef struct
 {
-	const IconIdPair icons64[NR_ICONS] = {
-			{"01d",icon64_01d},
-			{"01n",icon64_01n},
-			{"02d",icon64_02d},
-			{"02n",icon64_02n},
-			{"03d",icon64_03d},
-			{"03n",icon64_03d},
-			{"04d",icon64_04d},
-			{"04n",icon64_04d},
-			{"09d",icon64_09d},
-			{"09n",icon64_09d},
-			{"10d",icon64_10d},
-			{"10n",icon64_10d},
-			{"11d",icon64_11d},
-			{"11n",icon64_11d},
-			{"13d",icon64_13d},
-			{"13n",icon64_13d},
-			{"50d",icon64_50d},
-			{"50n",icon64_50n}
-	};
-	const IconIdPair icons128[NR_ICONS] = {
-			{"01d",icon128_01d},
-			{"01n",icon128_01n},
-			{"02d",icon128_02d},
-			{"02n",icon128_02n},
-			{"03d",icon128_03d},
-			{"03n",icon128_03d},
-			{"04d",icon128_04d},
-			{"04n",icon128_04d},
-			{"09d",icon128_09d},
-			{"09n",icon128_09d},
-			{"10d",icon128_10d},
-			{"10n",icon128_10d},
-			{"11d",icon128_11d},
-			{"11n",icon128_11d},
-			{"13d",icon128_13d},
-			{"13n",icon128_13d},
-			{"50d",icon128_50d},
-			{"50n",icon128_50n}
-	};
-	const IconIdPair icons256[NR_ICONS] = {
-			{"01d",icon256_01d},
-			{"01n",icon256_01n},
-			{"02d",icon256_02d},
-			{"02n",icon256_02n},
-			{"03d",icon256_03d},
-			{"03n",icon256_03d},
-			{"04d",icon256_04d},
-			{"04n",icon256_04d},
-			{"09d",icon256_09d},
-			{"09n",icon256_09d},
-			{"10d",icon256_10d},
-			{"10n",icon256_10d},
-			{"11d",icon256_11d},
-			{"11n",icon256_11d},
-			{"13d",icon256_13d},
-			{"13n",icon256_13d},
-			{"50d",icon256_50d},
-			{"50n",icon256_50n}
-	};
+	IconId id;
+	const uint *icon64;
+	const uint *icon128;
+	const uint *icon256;
+}IconIdPair;
 
-	const IconIdPair *icons;
-	switch (size)
-	{
-	case 64:
-		icons = icons64;
-		break;
-	case 128:
-		icons = icons128;
-		break;
-	case 256:
-		icons = icons256;
-		break;
-	default:
-		return NULL;
-	}
+LOCAL const IconIdPair IconIds[] = {
+	{"01d", icon64_01d, icon128_01d, icon256_01d},
+	{"01n", icon64_01n, icon128_01n, icon256_01n},
+	{"02d", icon64_02d, icon128_02d, icon256_02d},
+	{"02n", icon64_02n, icon128_02n, icon256_02n},
+	{"03d", icon64_03d, icon128_03d, icon256_03d},
+	{"03n", icon64_03d, icon128_03d, icon256_03d},
+	{"04d", icon64_04d, icon128_04d, icon256_04d},
+	{"04n", icon64_04d, icon128_04d, icon256_04d},
+	{"09d", icon64_09d, icon128_09d, icon256_09d},
+	{"09n", icon64_09d, icon128_09d, icon256_09d},
+	{"10d", icon64_10d, icon128_10d, icon256_10d},
+	{"10n", icon64_10d, icon128_10d, icon256_10d},
+	{"11d", icon64_11d, icon128_11d, icon256_11d},
+	{"11n", icon64_11d, icon128_11d, icon256_11d},
+	{"13d", icon64_13d, icon128_13d, icon256_13d},
+	{"13n", icon64_13d, icon128_13d, icon256_13d},
+	{"50d", icon64_50d, icon128_50d, icon256_50d},
+	{"50n", icon64_50n, icon128_50n, icon256_50n}
+};
 
+
+const uint* ICACHE_FLASH_ATTR iconIdToImage(IconId id, int size)
+{
 	int i;
-	for (i = 0; i < NR_ICONS; i++)
+	for (i = 0; i < NELEMENTS(IconIds); i++)
 	{
-		if (!os_strcmp(iconId, icons[i].id))
+		if (IconIds[i].id.val == id.val)
 		{
-			return icons[i].icon;
+			switch (size)
+			{
+			case 64: return IconIds[i].icon64;
+			case 128: return IconIds[i].icon128;
+			case 256: return IconIds[i].icon256;
+			default: return NULL;
+			}
 		}
 	}
-
 	return NULL;
 }

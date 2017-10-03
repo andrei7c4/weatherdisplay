@@ -32,10 +32,10 @@ LOCAL void ICACHE_FLASH_ATTR findMinMaxTemp(Forecast *forecast, ForecastType typ
 	float temp;
 	switch (type)
 	{
-	case eForecastHourly:
+	case eHourlyChart:
 		for (i = 0; i < cnt; i++)
 		{
-			temp = forecast[i].temp;
+			temp = forecast[i].temp.val;
 			if (temp < *min)
 			{
 				*min = temp;
@@ -46,15 +46,15 @@ LOCAL void ICACHE_FLASH_ATTR findMinMaxTemp(Forecast *forecast, ForecastType typ
 			}
 		}
 		break;
-	case eForecastDaily:
+	case eDailyChart:
 		for (i = 0; i < cnt; i++)
 		{
-			temp = forecast[i].minTemp;
+			temp = forecast[i].temp.min;
 			if (temp < *min)
 			{
 				*min = temp;
 			}
-			temp = forecast[i].maxTemp;
+			temp = forecast[i].temp.max;
 			if (temp > *max)
 			{
 				*max = temp;
@@ -437,10 +437,10 @@ void ICACHE_FLASH_ATTR drawForecastChart(Forecast *forecast, ForecastType type, 
 	float *rains = (float*)os_zalloc(cnt*sizeof(float));
 	switch (type)
 	{
-	case eForecastHourly:
+	case eHourlyChart:
 		for (i = 0; i < cnt; i++)
 		{
-			temps[i] = kelvinToTemp(forecast[i].temp);
+			temps[i] = kelvinToTemp(forecast[i].temp.val);
 		}
 		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 1);
 
@@ -454,16 +454,16 @@ void ICACHE_FLASH_ATTR drawForecastChart(Forecast *forecast, ForecastType type, 
 		drawHours(forecast, cnt, plotX, y+height+10, plotWidth, 2, 2);
 		drawIcons(forecast, cnt, plotX, y+height+30, plotWidth, 2, 2);
 		break;
-	case eForecastDaily:
+	case eDailyChart:
 		for (i = 0; i < cnt; i++)
 		{
-			temps[i] = kelvinToTemp(forecast[i].minTemp);
+			temps[i] = kelvinToTemp(forecast[i].temp.min);
 		}
 		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 2);
 
 		for (i = 0; i < cnt; i++)
 		{
-			temps[i] = kelvinToTemp(forecast[i].maxTemp);
+			temps[i] = kelvinToTemp(forecast[i].temp.max);
 		}
 		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 2);
 

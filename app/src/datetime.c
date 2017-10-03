@@ -86,3 +86,13 @@ int ICACHE_FLASH_ATTR epochToTm(long long t, struct tm *tm)
 
 	return 0;
 }
+
+int ICACHE_FLASH_ATTR epochToHours(long long t)
+{
+	long long secs = t - LEAPOCH;
+	int remsecs = secs % 86400;
+	if (remsecs < 0) {
+		remsecs += 86400;
+	}
+	return remsecs / 3600;
+}

@@ -4,7 +4,7 @@
 #include "common.h"
 
 int parseWeather(char *data, CurWeather *curWeather);
-int parseForecast(char *data, Forecast *forecast, ForecastType forecastType);
+int parseForecast(char *data, Forecast *forecast, int forecastSize);
 
 
 #endif /* INCLUDE_PARSEJSON_H_ */

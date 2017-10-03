@@ -24,20 +24,21 @@ LOCAL const char *openWeatherMapHost = "api.openweathermap.org";
 LOCAL const char *thingSpeakHost = "api.thingspeak.com";
 LOCAL const char *tsFieldName = "field1";
 
-#define HTTP_MSG_MAX_LEN	4096
+#define HTTP_MSG_MAX_LEN	16000
 LOCAL char httpMsgRxBuf[HTTP_MSG_MAX_LEN];
 LOCAL char httpMsgTxBuf[200];
 LOCAL int httpMsgCurLen = 0;
 
 LOCAL os_timer_t gpTmr;
+LOCAL os_timer_t httpRxTmr;
 LOCAL struct espconn tcpSock;
 LOCAL struct _esp_tcp tcpSockParams;
 LOCAL ip_addr_t serverIp;
 LOCAL os_timer_t timeoutTmr;
 
 LOCAL CurWeather curWeather;
-LOCAL Forecast forecastDaily[FORECAST_DAILY_CNT];
-LOCAL Forecast forecastHourly[FORECAST_HOURLY_CNT];
+LOCAL Forecast forecastHourly[FORECAST_HOURLY_SIZE];
+LOCAL Forecast forecastDaily[FORECAST_DAILY_SIZE];
 LOCAL char indoorTemp[8] = "";
 LOCAL struct tm *curTime = NULL;
 
@@ -52,8 +53,7 @@ typedef enum{
 	stateGetOwmIp,
 	stateConnectToOwm,
 	stateGetWeather,
-	stateGetHourlyForecast,
-	stateGetDailyForecast,
+	stateGetForecast,
 	stateGetThingSpeakIp,
 	stateConnectToTs,
 	stateSendTempToTs,
@@ -84,12 +84,15 @@ LOCAL void onTcpDisconnected(void *arg);
 LOCAL void onTcpConnFailed(void *arg, sint8 err);
 LOCAL void timeoutTmrCb(void);
 LOCAL void parseHttpReply(void);
+LOCAL int createDailyFromHourly(const Forecast *hourly, int hCount, Forecast *daily, int dailySize);
 LOCAL void gotoSleep(int success);
 
 
 void user_init(void)
 {
 	os_timer_disarm(&gpTmr);
+	os_timer_disarm(&httpRxTmr);
+	os_timer_setfn(&httpRxTmr, (os_timer_func_t *)parseHttpReply, NULL);
 	os_timer_disarm(&timeoutTmr);	// timeout timer, normally should never fire
 	os_timer_setfn(&timeoutTmr, (os_timer_func_t *)timeoutTmrCb, NULL);
 
@@ -268,24 +271,14 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			retain.cityId[0] ? retain.cityId : config.city,
 			config.appid, openWeatherMapHost);
 		break;
-	case stateGetHourlyForecast:
+	case stateGetForecast:
 		if (!config.appid[0] || !config.city[0])
 			return;
 		os_sprintf(httpMsgTxBuf,
 			"GET /data/2.5/forecast?%s=%s&mode=json&cnt=%d&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
 			retain.cityId[0] ? "id" : "q",
 			retain.cityId[0] ? retain.cityId : config.city,
-			FORECAST_HOURLY_CNT,
-			config.appid, openWeatherMapHost);
-		break;
-	case stateGetDailyForecast:
-		if (!config.appid[0] || !config.city[0])
-			return;
-		os_sprintf(httpMsgTxBuf,
-			"GET /data/2.5/forecast/daily?%s=%s&mode=json&cnt=%d&lang=en&APPID=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			retain.cityId[0] ? "id" : "q",
-			retain.cityId[0] ? retain.cityId : config.city,
-			FORECAST_DAILY_CNT,
+			FORECAST_HOURLY_SIZE,
 			config.appid, openWeatherMapHost);
 		break;
 	case stateSendTempToTs:
@@ -320,14 +313,14 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDataSent(void *arg)
 
 LOCAL void ICACHE_FLASH_ATTR onTcpDataReceived(void *arg, char *pusrdata, unsigned short length)
 {
-	os_timer_disarm(&gpTmr);
 	debug("onTcpDataReceived %d\n", length);
 
 	if ((HTTP_MSG_MAX_LEN-httpMsgCurLen) > length)
 	{
 		os_memcpy(httpMsgRxBuf+httpMsgCurLen, pusrdata, length);
 		httpMsgCurLen += length;
-		parseHttpReply();
+		os_timer_disarm(&httpRxTmr);
+		os_timer_arm(&httpRxTmr, 100, 0);
 	}
 	else
 	{
@@ -339,8 +332,7 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDisconnected(void *arg)
 {
 	debug("onTcpDisconnected\n");
 	if (appState == stateGetWeather ||
-		appState == stateGetHourlyForecast ||
-		appState == stateGetDailyForecast)
+		appState == stateGetForecast)
 	{
 		debug("reconnect to owm\n");
 		setAppState(stateConnectToOwm);
@@ -363,15 +355,16 @@ LOCAL void ICACHE_FLASH_ATTR onTcpConnFailed(void *arg, sint8 err)
 	}
 }
 
+
 LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 {
-	debug("parseHttpReply %d\n", httpMsgCurLen);
+	os_timer_disarm(&gpTmr);
 	httpMsgRxBuf[httpMsgCurLen] = 0;
+	debug("parseHttpReply %d\n", httpMsgCurLen);
+	//os_printf("%s\n", httpMsgRxBuf);
 
-	//debug("%s\n", httpMsgRxBuf);
 	if (appState != stateGetWeather &&
-		appState != stateGetHourlyForecast &&
-		appState != stateGetDailyForecast)
+		appState != stateGetForecast)
 	{
 		return;
 	}
@@ -389,19 +382,7 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 				if (parseWeather(json, &curWeather) == OK)
 				{
 					msgValid = TRUE;
-					os_timer_disarm(&gpTmr);
-
-					if (config.chart & eForecastHourly)
-					{
-						drawCurrentWeatherSmall(&curWeather);
-						setAppState(stateGetHourlyForecast);
-					}
-					else
-					{
-						drawCurrentWeather(&curWeather);
-						dispUpdate(eDispTopPart);
-						setAppState(stateGetDailyForecast);
-					}
+					setAppState(stateGetForecast);
 					sendHttpRequest();
 				}
 				else
@@ -409,42 +390,45 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 					debug("parseWeather failed\n");
 				}
 			}
-			else if (appState == stateGetHourlyForecast)
+			else if (appState == stateGetForecast)
 			{
-				if (parseForecast(json, forecastHourly, eForecastHourly) == OK)
+				int hourlyCount = parseForecast(json, forecastHourly, FORECAST_HOURLY_SIZE);
+				if (hourlyCount > 0)
 				{
 					msgValid = TRUE;
-					os_timer_disarm(&gpTmr);
 
-					drawHourlyForecastChart(forecastHourly);
-					dispUpdate(eDispTopPart);
-
-					// send daily forecast request
-					setAppState(stateGetDailyForecast);
-					sendHttpRequest();
-				}
-				else
-				{
-					debug("parse forecastHourly failed\n");
-				}
-			}
-			else if (appState == stateGetDailyForecast)
-			{
-				if (parseForecast(json, forecastDaily, eForecastDaily) == OK)
-				{
-					msgValid = TRUE;
-					os_timer_disarm(&gpTmr);
+					int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
 
 					dispReadTemp(indoorTemp);
-					if (config.chart & eForecastDaily)
+
+					switch (config.chart)
 					{
-						drawDailyForecastChart(forecastDaily);
-						drawIndoorTempSmall(indoorTemp);
-					}
-					else
-					{
-						drawForecast(forecastDaily);
+					case eNoChart:
+						drawCurrentWeather(&curWeather);
+						dispUpdate(eDispTopPart);
+						drawForecast(forecastDaily, dailyCount);
 						drawIndoorTemp(indoorTemp);
+						break;
+					case eHourlyChart:
+						drawCurrentWeatherSmall(&curWeather);
+						drawHourlyForecastChart(forecastHourly, hourlyCount);
+						dispUpdate(eDispTopPart);
+						drawForecast(forecastDaily, dailyCount);
+						drawIndoorTemp(indoorTemp);
+						break;
+					case eDailyChart:
+						drawCurrentWeather(&curWeather);
+						dispUpdate(eDispTopPart);
+						drawDailyForecastChart(forecastDaily, dailyCount);
+						drawIndoorTempSmall(indoorTemp);
+						break;
+					case eBothCharts:
+						drawCurrentWeatherSmall(&curWeather);
+						drawHourlyForecastChart(forecastHourly, hourlyCount);
+						dispUpdate(eDispTopPart);
+						drawDailyForecastChart(forecastDaily, dailyCount);
+						drawIndoorTempSmall(indoorTemp);
+						break;
 					}
 
 					curTime = (struct tm*)os_zalloc(sizeof(struct tm));
@@ -480,7 +464,7 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 				}
 				else
 				{
-					debug("parse forecastDaily failed\n");
+					debug("parseForecast failed\n");
 				}
 			}
 		}
@@ -506,11 +490,118 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 			{
 				// resend request afer one second
 				os_timer_setfn(&gpTmr, (os_timer_func_t *)sendHttpRequest, NULL);
-				os_timer_arm(&gpTmr, 1000, 0);				
+				os_timer_arm(&gpTmr, 1000, 0);
 			}
 		}
 	}
 }
+
+typedef struct
+{
+	IconId id;
+	uint cnt;
+}IconCnt;
+
+LOCAL void ICACHE_FLASH_ATTR incrementIconCnt(IconCnt *iconCnts, int size, IconId icon)
+{
+	int i;
+	for (i = 0; i < size; i++)
+	{
+		if (iconCnts[i].id.val == icon.val)	// icon found
+		{
+			iconCnts[i].cnt++;
+			return;
+		}
+		else if (iconCnts[i].id.val == 0)		// end of the list
+		{
+			iconCnts[i].id.val = icon.val;	// add to the list
+			iconCnts[i].cnt = 1;
+			return;
+		}
+	}
+}
+
+LOCAL IconId ICACHE_FLASH_ATTR getMostFrequentIcon(const IconCnt *iconCnts, int size)
+{
+	IconCnt icon = {.id.val = 0, .cnt = 0};
+	int i;
+	for (i = 0; i < size; i++)
+	{
+		// prefer daytime icons
+		if (iconCnts[i].id.str[2] == 'd' && iconCnts[i].cnt > icon.cnt)
+		{
+			icon = iconCnts[i];
+		}
+	}
+	if (!icon.id.val)	// use nighttime if no daytime icons found
+	{
+		for (i = 0; i < size; i++)
+		{
+			if (iconCnts[i].cnt > icon.cnt)
+			{
+				icon = iconCnts[i];
+			}
+		}
+	}
+	return icon.id;
+}
+
+LOCAL int ICACHE_FLASH_ATTR createDailyFromHourly(const Forecast *hourly, int hCount, Forecast *daily, int dailySize)
+{
+	if (dailySize < 1 || hCount < 1)
+	{
+		return 0;
+	}
+	int hour = epochToHours(hourly[0].datetime);
+	int curHour;
+	int midDaySet = FALSE;
+	daily[0].datetime = hourly[0].datetime;
+	daily[0].temp.min = hourly[0].temp.val;
+	daily[0].temp.max = hourly[0].temp.val;
+	daily[0].rainsnow = hourly[0].rainsnow;
+	IconCnt iconCnts[8];	// hourly results interval is 3h so max 8 icons per day
+	os_memset(iconCnts, 0, sizeof(iconCnts));
+	incrementIconCnt(iconCnts, NELEMENTS(iconCnts), hourly[0].icon);
+
+	int i, j;
+	for (i = 1, j = 0; i < hCount; i++)
+	{
+		curHour = hour;
+		hour = epochToHours(hourly[i].datetime);
+		if (hour < curHour)		// detect day change
+		{
+			daily[j].icon = getMostFrequentIcon(iconCnts, NELEMENTS(iconCnts));
+			j++;
+			if (j >= dailySize)		// unlikely
+			{
+				return j;
+			}
+			midDaySet = FALSE;
+			daily[j].datetime = hourly[i].datetime;
+			daily[j].temp.min = hourly[i].temp.val;
+			daily[j].temp.max = hourly[i].temp.val;
+			daily[j].rainsnow = hourly[i].rainsnow;
+			os_memset(iconCnts, 0, sizeof(iconCnts));	// reset icon counts
+		}
+		else
+		{
+			if (!midDaySet && hour >= 12)	// try to set datetime at midday if possible
+			{
+				midDaySet = TRUE;
+				daily[j].datetime = hourly[i].datetime;
+			}
+			if (hourly[i].temp.val < daily[j].temp.min)
+				daily[j].temp.min = hourly[i].temp.val;
+			if (hourly[i].temp.val > daily[j].temp.max)
+				daily[j].temp.max = hourly[i].temp.val;
+			daily[j].rainsnow += hourly[i].rainsnow;
+		}
+		incrementIconCnt(iconCnts, NELEMENTS(iconCnts), hourly[i].icon);
+	}
+	daily[j].icon = getMostFrequentIcon(iconCnts, NELEMENTS(iconCnts));
+	return j+1;
+}
+
 
 void ICACHE_FLASH_ATTR dispUpdateDoneCb(uint16 rv)
 {
