@@ -431,14 +431,14 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 						case eNoChart:
 							drawCurrentWeather(&curWeather);
 							dispUpdate(eDispTopPart);
-							drawForecast(forecastDaily, dailyCount);
+							drawForecast(forecastDaily, dailyCount, curTime);
 							drawIndoorTemp(indoorTempStr);
 							break;
 						case eHourlyChart:
 							drawCurrentWeatherSmall(&curWeather);
 							drawHourlyForecastChart(forecastHourly, hourlyCount);
 							dispUpdate(eDispTopPart);
-							drawForecast(forecastDaily, dailyCount);
+							drawForecast(forecastDaily, dailyCount, curTime);
 							drawIndoorTemp(indoorTempStr);
 							break;
 						case eDailyChart:

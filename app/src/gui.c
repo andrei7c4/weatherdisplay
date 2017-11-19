@@ -101,7 +101,7 @@ void ICACHE_FLASH_ATTR drawCurrentWeatherSmall(CurWeather *curWeather)
 }
 
 
-void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast, int count)
+void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast, int count, struct tm *curTime)
 {
 	const int iconWidth = 128;
 	const int iconX[3] = {16, 176, 336};
@@ -116,22 +116,36 @@ void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast, int count)
 	dispFillMem(0x00);
 	dispDrawLine(0, 0, DISP_WIDTH-1, 0, 1);
 
-	int i, days = MIN(count, 3);
-	for (i = 0; i < days; i++)
+	struct tm tm;
+	int i;
+	for (i = 0; i < count; i++)
 	{
-		switch (i)
+		if (epochToTm(forecast[i].datetime, &tm) == OK)
 		{
-		case 0:
-			os_strcpy(strbuf, "Today");
-			break;
-		case 1:
-			os_strcpy(strbuf, "Tomorrow");
-			break;
-		case 2:
-			epochToWeekday(forecast[2].datetime, strbuf);
-			break;
+			if (curTime)
+			{
+				if (curTime->tm_wday == tm.tm_wday)
+				{
+					os_strcpy(strbuf, "Today");
+				}
+				else if (curTime->tm_wday+1 == tm.tm_wday ||
+						(curTime->tm_wday == 6 && tm.tm_wday == 0))
+				{
+					os_strcpy(strbuf, "Tomorrow");
+				}
+				else
+				{
+					decodeWeekday(tm.tm_wday, strbuf);
+				}
+			}
+			else
+			{
+				decodeWeekday(tm.tm_wday, strbuf);
+			}
+
+			dispDrawStrCentred(arial32, textCentre[i], weekdayY, strbuf);
 		}
-		dispDrawStrCentred(arial32, textCentre[i], weekdayY, strbuf);
+
 		dispDrawImage(iconX[i], iconY, iconIdToImage(forecast[i].icon, 128));
 
 		int tempMin = floatToIntRound(kelvinToTemp(forecast[i].temp.min));

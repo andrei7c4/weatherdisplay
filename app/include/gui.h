@@ -9,7 +9,7 @@ void drawCurrentWeatherSmall(CurWeather *curWeather);
 
 void drawHourlyForecastChart(Forecast *forecast, int count);
 void drawDailyForecastChart(Forecast *forecast, int count);
-void drawForecast(Forecast *forecast, int count);
+void drawForecast(Forecast *forecast, int count, struct tm *curTime);
 
 void drawIndoorTemp(const char *temp);
 void drawIndoorTempSmall(const char *temp);
