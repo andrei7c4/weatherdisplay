@@ -7,7 +7,7 @@
 #include "debug.h"
 #include "conv.h"
 #include "icons.h"
-#include "config.h"
+#include "retain.h"
 
 
 LOCAL int ICACHE_FLASH_ATTR jumpToNextType(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name, int stopOnDepthChange)

@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "parsejson.h"
 #include "config.h"
+#include "retain.h"
 #include "conv.h"
 #include "dispspi.h"
 #include "display.h"
@@ -39,7 +40,7 @@ LOCAL os_timer_t timeoutTmr;
 LOCAL CurWeather curWeather;
 LOCAL Forecast forecastHourly[FORECAST_HOURLY_SIZE];
 LOCAL Forecast forecastDaily[FORECAST_DAILY_SIZE];
-LOCAL char indoorTemp[8] = "";
+LOCAL char indoorTempStr[8] = "";
 LOCAL struct tm *curTime = NULL;
 
 LOCAL int dispUpdateDone = FALSE;
@@ -282,11 +283,11 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			config.appid, openWeatherMapHost);
 		break;
 	case stateSendTempToTs:
-		if (!config.tsApiKey[0])
+		if (!config.tsApiKey[0] || !indoorTempStr[0])
 			return;
 		os_sprintf(httpMsgTxBuf,
 			"GET /update?api_key=%s&%s=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
-			config.tsApiKey, tsFieldName, indoorTemp, thingSpeakHost);
+			config.tsApiKey, tsFieldName, indoorTempStr, thingSpeakHost);
 		break;
 	default: return;
 	}
@@ -399,36 +400,12 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 
 					int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
 
-					dispReadTemp(indoorTemp);
-
-					switch (config.chart)
+					float indoorTemp;
+					if (dispReadTemp(&indoorTemp) == OK)
 					{
-					case eNoChart:
-						drawCurrentWeather(&curWeather);
-						dispUpdate(eDispTopPart);
-						drawForecast(forecastDaily, dailyCount);
-						drawIndoorTemp(indoorTemp);
-						break;
-					case eHourlyChart:
-						drawCurrentWeatherSmall(&curWeather);
-						drawHourlyForecastChart(forecastHourly, hourlyCount);
-						dispUpdate(eDispTopPart);
-						drawForecast(forecastDaily, dailyCount);
-						drawIndoorTemp(indoorTemp);
-						break;
-					case eDailyChart:
-						drawCurrentWeather(&curWeather);
-						dispUpdate(eDispTopPart);
-						drawDailyForecastChart(forecastDaily, dailyCount);
-						drawIndoorTempSmall(indoorTemp);
-						break;
-					case eBothCharts:
-						drawCurrentWeatherSmall(&curWeather);
-						drawHourlyForecastChart(forecastHourly, hourlyCount);
-						dispUpdate(eDispTopPart);
-						drawDailyForecastChart(forecastDaily, dailyCount);
-						drawIndoorTempSmall(indoorTemp);
-						break;
+						int integer = (int)indoorTemp;
+						int fract = (int)((indoorTemp-integer)*10.0);
+						ets_snprintf(indoorTempStr, sizeof(indoorTempStr), "%d.%d", integer, fract);
 					}
 
 					curTime = (struct tm*)os_zalloc(sizeof(struct tm));
@@ -437,29 +414,76 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 						os_free(curTime);
 						curTime = NULL;
 					}
-					drawMetaInfo(curTime);
-					dispUpdate(eDispBottomPart);
-					// dispUpdateDoneCb will be called later
 
-					if (config.tsApiKey[0])
+					hourlyCount = (config.chart == eHourlyChart || config.chart == eBothCharts) ?
+									MIN(hourlyCount, FORECAST_HOURLY_CHART_CNT) : 0;
+					dailyCount = (config.chart == eNoChart || config.chart == eHourlyChart) ?
+									MIN(dailyCount, 3) : dailyCount;
+
+					if (!retainedWeatherEqual(&curWeather, forecastHourly, hourlyCount, forecastDaily, dailyCount, indoorTemp))
 					{
-						setAppState(stateGetThingSpeakIp);
+						// save current weather and forecast in rtc memory
+						retainWeather(&curWeather, forecastHourly, hourlyCount, forecastDaily, dailyCount, indoorTemp);
 
-						espconn_disconnect(&tcpSock);
-						tcpSock.type = ESPCONN_TCP;
-						tcpSock.state = ESPCONN_NONE;
+						// draw current weather and forecast on the screen
+						switch (config.chart)
+						{
+						case eNoChart:
+							drawCurrentWeather(&curWeather);
+							dispUpdate(eDispTopPart);
+							drawForecast(forecastDaily, dailyCount);
+							drawIndoorTemp(indoorTempStr);
+							break;
+						case eHourlyChart:
+							drawCurrentWeatherSmall(&curWeather);
+							drawHourlyForecastChart(forecastHourly, hourlyCount);
+							dispUpdate(eDispTopPart);
+							drawForecast(forecastDaily, dailyCount);
+							drawIndoorTemp(indoorTempStr);
+							break;
+						case eDailyChart:
+							drawCurrentWeather(&curWeather);
+							dispUpdate(eDispTopPart);
+							drawDailyForecastChart(forecastDaily, dailyCount);
+							drawIndoorTempSmall(indoorTempStr);
+							break;
+						case eBothCharts:
+							drawCurrentWeatherSmall(&curWeather);
+							drawHourlyForecastChart(forecastHourly, hourlyCount);
+							dispUpdate(eDispTopPart);
+							drawDailyForecastChart(forecastDaily, dailyCount);
+							drawIndoorTempSmall(indoorTempStr);
+							break;
+						}
 
-						// get ThingSpeak server ip
-						serverIp.addr = 0;
-						espconn_gethostbyname(&tcpSock, thingSpeakHost, &serverIp, getHostByNameCb);
+						drawMetaInfo(curTime, retain.fails, retain.updates, retain.attempts);
+						dispUpdate(eDispBottomPart);
+						// dispUpdateDoneCb will be called later
 
-						os_timer_setfn(&gpTmr, (os_timer_func_t *)checkDnsStatus, &tcpSock);
-						os_timer_arm(&gpTmr, dnsCheckInterval, 0);
+						if (config.tsApiKey[0] && indoorTempStr[0])		// ThingSpeak api key configured
+						{
+							setAppState(stateGetThingSpeakIp);
+
+							espconn_disconnect(&tcpSock);
+							tcpSock.type = ESPCONN_TCP;
+							tcpSock.state = ESPCONN_NONE;
+
+							// get ThingSpeak server ip
+							serverIp.addr = 0;
+							espconn_gethostbyname(&tcpSock, thingSpeakHost, &serverIp, getHostByNameCb);
+
+							os_timer_setfn(&gpTmr, (os_timer_func_t *)checkDnsStatus, &tcpSock);
+							os_timer_arm(&gpTmr, dnsCheckInterval, 0);
+						}
+						else
+						{
+							setAppState(stateWaitDispUpdate);
+							//gotoSleep(TRUE);
+						}
 					}
-					else
-					{
-						setAppState(stateWaitDispUpdate);
-						//gotoSleep(TRUE);
+					else	// no significant change in weather or forecast
+					{		// go to sleep without updating the display (saves battery)
+						gotoSleep(TRUE);
 					}
 				}
 				else
@@ -609,6 +633,7 @@ void ICACHE_FLASH_ATTR dispUpdateDoneCb(uint16 rv)
 	dispUpdateDone = TRUE;
 	if (appState == stateWaitDispUpdate)
 	{
+		retain.updates++;
 		gotoSleep(TRUE);
 	}
 }

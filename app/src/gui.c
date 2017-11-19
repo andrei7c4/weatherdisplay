@@ -148,7 +148,7 @@ void ICACHE_FLASH_ATTR drawForecast(Forecast *forecast, int count)
 #define CHART_HEIGHT	220
 void ICACHE_FLASH_ATTR drawHourlyForecastChart(Forecast *forecast, int count)
 {
-	drawForecastChart(forecast, eHourlyChart, MIN(FORECAST_HOURLY_CHART_CNT, count),
+	drawForecastChart(forecast, eHourlyChart, count,
 						0, 80, DISP_WIDTH, CHART_HEIGHT);
 }
 
@@ -165,30 +165,36 @@ void ICACHE_FLASH_ATTR drawDailyForecastChart(Forecast *forecast, int count)
 
 void ICACHE_FLASH_ATTR drawIndoorTemp(const char *temp)
 {
-	dispDrawLine(0, DISP_HEIGHT-92, DISP_WIDTH-1, DISP_HEIGHT-92, 1);
-	dispDrawImage(16, DISP_HEIGHT-74, indoorTempIcon64);
-	int strWidth = dispDrawStr(segment58, 96, DISP_HEIGHT-51, temp);
-	dispDrawChar(segment58, 96+strWidth, DISP_HEIGHT-51, '*');
+	if (temp[0])
+	{
+		dispDrawLine(0, DISP_HEIGHT-92, DISP_WIDTH-1, DISP_HEIGHT-92, 1);
+		dispDrawImage(16, DISP_HEIGHT-74, indoorTempIcon64);
+		int strWidth = dispDrawStr(segment58, 96, DISP_HEIGHT-51, temp);
+		dispDrawChar(segment58, 96+strWidth, DISP_HEIGHT-51, '*');
+	}
 }
 
 void ICACHE_FLASH_ATTR drawIndoorTempSmall(const char *temp)
 {
-	dispDrawLine(0, DISP_HEIGHT-45, DISP_WIDTH-1, DISP_HEIGHT-45, 1);
-	dispDrawImage(16, DISP_HEIGHT-42, indoorTempIcon40);
-	int strWidth = dispDrawStr(segment58, 72, DISP_HEIGHT-41, temp);
-	dispDrawChar(segment58, 72+strWidth, DISP_HEIGHT-41, '*');
+	if (temp[0])
+	{
+		dispDrawLine(0, DISP_HEIGHT-45, DISP_WIDTH-1, DISP_HEIGHT-45, 1);
+		dispDrawImage(16, DISP_HEIGHT-42, indoorTempIcon40);
+		int strWidth = dispDrawStr(segment58, 72, DISP_HEIGHT-41, temp);
+		dispDrawChar(segment58, 72+strWidth, DISP_HEIGHT-41, '*');
+	}
 }
 
-void ICACHE_FLASH_ATTR drawMetaInfo(struct tm *curTime)
+void ICACHE_FLASH_ATTR drawMetaInfo(struct tm *curTime, uint fails, uint updates, uint attempts)
 {
-	char strbuf[20];
+	char strbuf[40];
 	if (curTime)
 	{
 		strbuf[0] = '@';
 		printTime(curTime, strbuf+1);
 		dispDrawStrAlignRight(arial16, DISP_WIDTH, DISP_HEIGHT-30, strbuf);
 	}
-	os_sprintf(strbuf, "fails %u/%u", retain.fails, retain.attempts);
+	os_sprintf(strbuf, "%u/%u/%u", fails, updates, attempts);
 	dispDrawStrAlignRight(arial16, DISP_WIDTH, DISP_HEIGHT-15, strbuf);
 }
 
@@ -219,16 +225,23 @@ void ICACHE_FLASH_ATTR printTime(struct tm *tm, char *str)
 	}
 }
 
+
 void ICACHE_FLASH_ATTR epochToWeekday(uint epoch, char *weekday)
 {
 	struct tm tm;
-	if (epochToTm(epoch, &tm) != OK)
+	if (epochToTm(epoch, &tm) == OK)
+	{
+		decodeWeekday(tm.tm_wday, weekday);
+	}
+	else
 	{
 		os_strcpy(weekday,"");
-		return;
 	}
+}
 
-	switch (tm.tm_wday)
+void ICACHE_FLASH_ATTR decodeWeekday(int tm_wday, char *weekday)
+{
+	switch (tm_wday)
 	{
 	case 0: os_strcpy(weekday,"Sunday"); break;
 	case 1: os_strcpy(weekday,"Monday"); break;
@@ -240,9 +253,6 @@ void ICACHE_FLASH_ATTR epochToWeekday(uint epoch, char *weekday)
 	default: os_strcpy(weekday,""); break;
 	}
 }
-
-
-
 
 
 

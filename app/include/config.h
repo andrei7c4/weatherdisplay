@@ -14,8 +14,8 @@
 
 #define CONFIG_SAVE_FLASH_SECTOR	0x3C
 #define CONFIG_SAVE_FLASH_ADDR		(CONFIG_SAVE_FLASH_SECTOR * SPI_FLASH_SEC_SIZE)
-#define VALID_MAGIC_NUMBER			0xAABBCCDD
-#define RTC_USER_DATA_ADDR			64
+
+
 
 typedef struct{
 	uint magic;
@@ -35,25 +35,9 @@ typedef struct{
 }Config;
 extern Config config;
 
-typedef struct{
-	uint magic;
-	struct ip_info ipConfig;
-	ip_addr_t dns1, dns2;
-	uint attempts;
-	uint fails;
-	uint retry;
-	uint longSleepCnt;
-	char cityId[8];
-}Retain;
-extern Retain retain;
-
 void configInit(Config *config);
 void configRead(Config *config);
 void configWrite(Config *config);
-
-void retainInit(Retain *retain);
-void retainRead(Retain *retain);
-void retainWrite(Retain *retain);
 
 
 #endif /* INCLUDE_CONFIG_H_ */

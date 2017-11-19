@@ -2,12 +2,15 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include "config.h"
+#include "retain.h"
 #include "conv.h"
 #include "display.h"
 #include "debug.h"
 
+
 Config config;
-Retain retain;
+
+#define VALID_MAGIC_NUMBER			0xAABBCCDD
 
 void ICACHE_FLASH_ATTR configInit(Config *config)
 {
@@ -47,33 +50,6 @@ void ICACHE_FLASH_ATTR configWrite(Config *config)
 {
 	spi_flash_erase_sector(CONFIG_SAVE_FLASH_SECTOR);
 	spi_flash_write(CONFIG_SAVE_FLASH_ADDR, (uint*)config, sizeof(Config));
-}
-
-
-void retainInit(Retain *retain)
-{
-	os_memset(retain, 0, sizeof(Retain));
-	retain->magic = VALID_MAGIC_NUMBER;
-}
-
-void retainRead(Retain *retain)
-{
-	system_rtc_mem_read(RTC_USER_DATA_ADDR, (uint*)retain, sizeof(Retain));
-	if (retain->magic != VALID_MAGIC_NUMBER)
-	{
-		os_printf("no valid retain found\n");
-		retainInit(retain);
-		retainWrite(retain);
-	}
-	else
-	{
-		os_printf("valid retain found\n");
-	}
-}
-
-void retainWrite(Retain *retain)
-{
-	system_rtc_mem_write(RTC_USER_DATA_ADDR, (uint*)retain, sizeof(Retain));
 }
 
 

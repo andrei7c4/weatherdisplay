@@ -41,7 +41,7 @@ void dispBeginUpload(void);
 void dispFinalizeUpload(void);
 void dispUploadLine(uchar *line);
 void dispPrintDeviceInfo(void);
-void dispReadTemp(char *tempstr);
+int dispReadTemp(float *temp);
 void dispSpiInit(void);
 void dispOff(void);
 

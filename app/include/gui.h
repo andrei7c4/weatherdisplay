@@ -14,10 +14,11 @@ void drawForecast(Forecast *forecast, int count);
 void drawIndoorTemp(const char *temp);
 void drawIndoorTempSmall(const char *temp);
 
-void drawMetaInfo(struct tm *curTime);
+void drawMetaInfo(struct tm *curTime, uint fails, uint updates, uint attempts);
 
 void printTime(struct tm *tm, char *str);
 void epochToWeekday(uint epoch, char *weekday);
+void decodeWeekday(int tm_wday, char *weekday);
 const uint* iconIdToImage(IconId id, int size);
 
 #endif /* INCLUDE_GUI_H_ */

@@ -265,7 +265,7 @@ void ICACHE_FLASH_ATTR dispPrintDeviceInfo(void)
 	}
 }
 
-void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
+int ICACHE_FLASH_ATTR dispReadTemp(float *temp)
 {
 	const float scale[4] = {0.66, 0.52, 0.43, 0.39};
 	const float offset[4] = {-19.69, -13.95, -8.55, -4.75};
@@ -277,8 +277,7 @@ void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
 	if (rv != pd74cmdOkRv)
 	{
 		debug("dispReadTemp rv %x\n", rv);
-		os_strcpy(tempstr, "");
-		return;
+		return ERROR;
 	}
 	sensor >>= 8;
 	debug("dispReadTemp sensor %u\n", sensor);
@@ -286,8 +285,7 @@ void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
 	int range;
 	if (sensor < 30)
 	{
-		os_strcpy(tempstr, "<0");
-		return;
+		return ERROR;
 	}
 	else if (sensor >= 30 && sensor <= 41) range = 0;
 	else if (sensor >= 42 && sensor <= 61) range = 1;
@@ -295,14 +293,11 @@ void ICACHE_FLASH_ATTR dispReadTemp(char *tempstr)
 	else if (sensor >= 97 && sensor <= 160) range = 3;
 	else
 	{
-		os_strcpy(tempstr, ">58");
-		return;
+		return ERROR;
 	}
 
-	float temp = (float)sensor * scale[range] + offset[range] + config.tempoffset + 0.05;
-	int integer = (int)temp;
-	int fract = (int)((temp-integer)*10.0);
-	os_sprintf(tempstr, "%d.%d", integer, fract);
+	*temp = (float)sensor * scale[range] + offset[range] + config.tempoffset + 0.05;
+	return OK;
 }
 
 void ICACHE_FLASH_ATTR dispSpiInit(void)
