@@ -1,5 +1,8 @@
 #include <os_type.h>
 #include <osapi.h>
+#include <math.h>   // for fabs
+#include "conv.h"
+#include "common.h"
 #include "config.h"
 
 int ICACHE_FLASH_ATTR strtoint(const char *p)
@@ -72,3 +75,24 @@ int ICACHE_FLASH_ATTR alignTo8(int value)
 	return value;
 }
 
+void ICACHE_FLASH_ATTR swap(uchar *a, uchar *b)
+{
+	uchar temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+void ICACHE_FLASH_ATTR swapInt(int *a, int *b)
+{
+	int temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+int ICACHE_FLASH_ATTR modfInt(float f, uchar fractDigits, int *intpart)
+{
+    const int mult[] = {1, 10, 100, 1000};
+    fractDigits = MIN(fractDigits, NELEMENTS(mult)-1);
+    *intpart = (int)f;
+    return fabs(f - *intpart) * mult[fractDigits] + 0.5;
+}

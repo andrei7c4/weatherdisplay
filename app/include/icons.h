@@ -14,6 +14,19 @@ extern const unsigned int icon256_13d[];
 extern const unsigned int icon256_50d[];
 extern const unsigned int icon256_50n[];
 
+extern const unsigned int icon192_01d[];
+extern const unsigned int icon192_01n[];
+extern const unsigned int icon192_02d[];
+extern const unsigned int icon192_02n[];
+extern const unsigned int icon192_03d[];
+extern const unsigned int icon192_04d[];
+extern const unsigned int icon192_09d[];
+extern const unsigned int icon192_10d[];
+extern const unsigned int icon192_11d[];
+extern const unsigned int icon192_13d[];
+extern const unsigned int icon192_50d[];
+extern const unsigned int icon192_50n[];
+
 extern const unsigned int icon128_01d[];
 extern const unsigned int icon128_01n[];
 extern const unsigned int icon128_02d[];
@@ -26,6 +39,19 @@ extern const unsigned int icon128_11d[];
 extern const unsigned int icon128_13d[];
 extern const unsigned int icon128_50d[];
 extern const unsigned int icon128_50n[];
+
+extern const unsigned int icon96_01d[];
+extern const unsigned int icon96_01n[];
+extern const unsigned int icon96_02d[];
+extern const unsigned int icon96_02n[];
+extern const unsigned int icon96_03d[];
+extern const unsigned int icon96_04d[];
+extern const unsigned int icon96_09d[];
+extern const unsigned int icon96_10d[];
+extern const unsigned int icon96_11d[];
+extern const unsigned int icon96_13d[];
+extern const unsigned int icon96_50d[];
+extern const unsigned int icon96_50n[];
 
 extern const unsigned int icon64_01d[];
 extern const unsigned int icon64_01n[];

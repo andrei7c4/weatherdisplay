@@ -27,6 +27,9 @@ void retainWeather(CurWeather *curWeather,
 		Forecast *hourly, int hourlyCount,
 		Forecast *daily, int dailyCount,
 		float indoorTemp);
+void retainWeatherRead(CurWeather *curWeather,
+		Forecast *hourly, int *hourlyCount,
+		Forecast *daily, int *dailyCount);
 int retainedWeatherEqual(CurWeather *curWeather,
 		Forecast *hourly, int hourlyCount,
 		Forecast *daily, int dailyCount,

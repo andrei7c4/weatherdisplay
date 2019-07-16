@@ -1,570 +1,290 @@
 #include <ets_sys.h>
 
-/* ' ' */
-static const unsigned int char32[5] ICACHE_RODATA_ATTR={
-8,1,4,12,
-0x00000000};
-
-/* '!' */
-static const unsigned int char33[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x08080808,0x08080808,0x00000800};
-
-/* '"' */
-static const unsigned int char34[5] ICACHE_RODATA_ATTR={
-8,3,4,0,
-0x00141414};
-
-/* '#' */
-static const unsigned int char35[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0xFF221212,0x48FF2424,0x00004848};
-
-/* '%' */
-static const unsigned int char37[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0xA8A4A440,0x25151248,0x00000225};
-
-/* '&' */
-static const unsigned int char38[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x48484830,0x8A926030,0x0000738C};
-
-/* ''' */
-static const unsigned int char39[5] ICACHE_RODATA_ATTR={
-8,3,4,0,
-0x00080808};
-
-/* '(' */
-static const unsigned int char40[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x10080804,0x10101010,0x08081010,0x00000004};
-
-/* ')' */
-static const unsigned int char41[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x04080810,0x04040404,0x08080404,0x00000010};
-
-/* '*' */
-static const unsigned int char42[5] ICACHE_RODATA_ATTR={
-8,4,4,0,
-0x14083E08};
-
-/* '+' */
-static const unsigned int char43[6] ICACHE_RODATA_ATTR={
-8,7,8,2,
-0x7F080808,0x00080808};
-
-/* ',' */
-static const unsigned int char44[5] ICACHE_RODATA_ATTR={
-8,3,4,9,
-0x00080808};
-
-/* '-' */
-static const unsigned int char45[5] ICACHE_RODATA_ATTR={
-8,1,4,6,
-0x0000001C};
-
-/* '.' */
-static const unsigned int char46[5] ICACHE_RODATA_ATTR={
-8,1,4,9,
-0x00000008};
-
-/* '/' */
-static const unsigned int char47[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x08080404,0x10101008,0x00002020};
-
-/* '0' */
-static const unsigned int char48[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4242423C,0x42424242,0x00003C42};
-
-/* '1' */
-static const unsigned int char49[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x04140C04,0x04040404,0x00000404};
-
-/* '2' */
-static const unsigned int char50[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0202423C,0x10080402,0x00007E20};
-
-/* '3' */
-static const unsigned int char51[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0202423C,0x0202021C,0x00003C42};
-
-/* '4' */
-static const unsigned int char52[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x140C0C04,0x7E242414,0x00000404};
-
-/* '5' */
-static const unsigned int char53[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4020203E,0x0202427C,0x00003C42};
-
-/* '6' */
-static const unsigned int char54[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4040423C,0x4242625C,0x00003C42};
-
-/* '7' */
-static const unsigned int char55[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0804047E,0x20101008,0x00002020};
-
-/* '8' */
-static const unsigned int char56[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4242423C,0x4242423C,0x00003C42};
-
-/* '9' */
-static const unsigned int char57[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4242423C,0x02023A46,0x00003844};
-
-/* ':' */
-static const unsigned int char58[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x00000008,0x00080000};
-
-/* ';' */
-static const unsigned int char59[7] ICACHE_RODATA_ATTR={
-8,9,12,3,
-0x00000008,0x08080000,0x00000008};
-
-/* '<' */
-static const unsigned int char60[6] ICACHE_RODATA_ATTR={
-8,7,8,2,
-0x40300C02,0x00020C30};
-
-/* '=' */
-static const unsigned int char61[5] ICACHE_RODATA_ATTR={
-8,4,4,3,
-0x7F00007F};
-
-/* '>' */
-static const unsigned int char62[6] ICACHE_RODATA_ATTR={
-8,7,8,2,
-0x020C3040,0x0040300C};
-
-/* '?' */
-static const unsigned int char63[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0222221C,0x10100804,0x00001000};
-
-/* '@' */
-static const unsigned int char64[11] ICACHE_RODATA_ATTR={
-16,13,28,0,
-0x100CE003,0xA4130810,0x24286424,0x48284428,0x7027C828,0x18080410,0x0000E007};
-
-/* 'A' */
-static const unsigned int char65[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x18181800,0x427E2424,0x00008181};
-
-/* 'B' */
-static const unsigned int char66[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4141417E,0x4141417E,0x00007E41};
-
-/* 'C' */
-static const unsigned int char67[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4041221C,0x41404040,0x00001C22};
-
-/* 'D' */
-static const unsigned int char68[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4141427C,0x41414141,0x00007C42};
-
-/* 'E' */
-static const unsigned int char69[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4040407F,0x4040407F,0x00007F40};
-
-/* 'F' */
-static const unsigned int char70[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4040407E,0x4040407C,0x00004040};
-
-/* 'G' */
-static const unsigned int char71[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x8081423C,0x81818F80,0x00003C42};
-
-/* 'H' */
-static const unsigned int char72[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x41414141,0x4141417F,0x00004141};
-
-/* 'I' */
-static const unsigned int char73[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x08080808,0x08080808,0x00000808};
-
-/* 'J' */
-static const unsigned int char74[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x02020202,0x22020202,0x00001C22};
-
-/* 'K' */
-static const unsigned int char75[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x88848281,0x84C8B090,0x00008182};
-
-/* 'L' */
-static const unsigned int char76[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x40404040,0x40404040,0x00007E40};
-
-/* 'M' */
-static const unsigned int char77[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0xA5C3C381,0x999999A5,0x00008181};
-
-/* 'N' */
-static const unsigned int char78[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x51516141,0x45454949,0x00004143};
-
-/* 'O' */
-static const unsigned int char79[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x8181423C,0x81818181,0x00003C42};
-
-/* 'P' */
-static const unsigned int char80[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4141417E,0x40407E41,0x00004040};
-
-/* 'Q' */
-static const unsigned int char81[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x8181423C,0x8D818181,0x00003D42};
-
-/* 'R' */
-static const unsigned int char82[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4141417E,0x42447E41,0x00004142};
-
-/* 'S' */
-static const unsigned int char83[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x4041413E,0x41010638,0x00003E41};
-
-/* 'T' */
-static const unsigned int char84[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0808087F,0x08080808,0x00000808};
-
-/* 'U' */
-static const unsigned int char85[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x41414141,0x41414141,0x00001C22};
-
-/* 'V' */
-static const unsigned int char86[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x42428181,0x18182424,0x00000000};
-
-/* 'W' */
-static const unsigned int char87[9] ICACHE_RODATA_ATTR={
-16,10,20,0,
-0x42218220,0x44114411,0x280A4411,0x280A280A,0x10041004};
-
-/* 'X' */
-static const unsigned int char88[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x14222241,0x22140808,0x00004122};
-
-/* 'Y' */
-static const unsigned int char89[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x14222241,0x08080814,0x00000808};
-
-/* 'Z' */
-static const unsigned int char90[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x0404023F,0x10100808,0x00007F20};
-
-/* '[' */
-static const unsigned int char91[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x10101018,0x10101010,0x10101010,0x00000018};
-
-/* '\' */
-static const unsigned int char92[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x10102020,0x08080810,0x00000404};
-
-/* ']' */
-static const unsigned int char93[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x08080818,0x08080808,0x08080808,0x00000018};
-
-/* '^' */
-static const unsigned int char94[6] ICACHE_RODATA_ATTR={
-8,5,8,1,
-0x14141408,0x00000022};
-
-/* '_' */
-static const unsigned int char95[5] ICACHE_RODATA_ATTR={
-8,1,4,12,
-0x0000007F};
-
-/* '`' */
-static const unsigned int char96[5] ICACHE_RODATA_ATTR={
-8,2,4,0,
-0x00000810};
-
-/* 'a' */
-static const unsigned int char97[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x1E02221C,0x001A2622};
-
-/* 'b' */
-static const unsigned int char98[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x2C202020,0x22222232,0x00003C22};
-
-/* 'c' */
-static const unsigned int char99[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x2020221C,0x001C2220};
-
-/* 'd' */
-static const unsigned int char100[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x1A020202,0x22222226,0x00001E22};
-
-/* 'e' */
-static const unsigned int char101[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x3E22221C,0x001C2220};
-
-/* 'f' */
-static const unsigned int char102[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x3810100C,0x10101010,0x00001010};
-
-/* 'g' */
-static const unsigned int char103[7] ICACHE_RODATA_ATTR={
-8,10,12,3,
-0x2222261A,0x021A2622,0x00001C22};
-
-/* 'h' */
-static const unsigned int char104[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x2C202020,0x22222232,0x00002222};
-
-/* 'i' */
-static const unsigned int char105[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x08000008,0x08080808,0x00000808};
-
-/* 'j' */
-static const unsigned int char106[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x04000004,0x04040404,0x04040404,0x00000018};
-
-/* 'k' */
-static const unsigned int char107[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x22202020,0x24382824,0x00002224};
-
-/* 'l' */
-static const unsigned int char108[7] ICACHE_RODATA_ATTR={
-8,10,12,0,
-0x08080808,0x08080808,0x00000808};
-
-/* 'm' */
-static const unsigned int char109[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x8181C9B6,0x00818181};
-
-/* 'n' */
-static const unsigned int char110[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x2222322C,0x00222222};
-
-/* 'o' */
-static const unsigned int char111[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x2222221C,0x001C2222};
-
-/* 'p' */
-static const unsigned int char112[7] ICACHE_RODATA_ATTR={
-8,10,12,3,
-0x2222322C,0x202C3222,0x00002020};
-
-/* 'q' */
-static const unsigned int char113[7] ICACHE_RODATA_ATTR={
-8,10,12,3,
-0x2222261A,0x021A2622,0x00000202};
-
-/* 'r' */
-static const unsigned int char114[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x10101814,0x00101010};
-
-/* 's' */
-static const unsigned int char115[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x1C20221C,0x001C2202};
-
-/* 't' */
-static const unsigned int char116[7] ICACHE_RODATA_ATTR={
-8,9,12,1,
-0x081C0808,0x08080808,0x0000000C};
-
-/* 'u' */
-static const unsigned int char117[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x22222222,0x001E2222};
-
-/* 'v' */
-static const unsigned int char118[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x14142222,0x00080814};
-
-/* 'w' */
-static const unsigned int char119[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x5A5A8181,0x0024245A};
-
-/* 'x' */
-static const unsigned int char120[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x08141422,0x00221414};
-
-/* 'y' */
-static const unsigned int char121[7] ICACHE_RODATA_ATTR={
-8,10,12,3,
-0x14142222,0x08080814,0x00003008};
-
-/* 'z' */
-static const unsigned int char122[6] ICACHE_RODATA_ATTR={
-8,7,8,3,
-0x0804043E,0x003E1010};
-
-/* '{' */
-static const unsigned int char123[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x08080804,0x08100808,0x08080808,0x00000004};
-
-/* '|' */
-static const unsigned int char124[7] ICACHE_RODATA_ATTR={
-8,12,12,0,
-0x08080808,0x08080808,0x08080808};
-
-/* '}' */
-static const unsigned int char125[8] ICACHE_RODATA_ATTR={
-8,13,16,0,
-0x08080810,0x08040808,0x08080808,0x00000010};
-
-/* '~' */
-static const unsigned int char126[5] ICACHE_RODATA_ATTR={
-8,2,4,4,
-0x00004F39};
-
-
-const unsigned int *arial16[97] ={
-(unsigned int*)32,(unsigned int*)126,
-char32,
-char33,
-char34,
-char35,
+const unsigned int arial16[490] ICACHE_RODATA_ATTR={
+/* Font header: first, last */
+32, 126,
+/* Char. offsets */
+97,
+99,
+103,
+105,
 0,
-char37,
-char38,
-char39,
-char40,
-char41,
-char42,
-char43,
-char44,
-char45,
-char46,
-char47,
-char48,
-char49,
-char50,
-char51,
-char52,
-char53,
-char54,
-char55,
-char56,
-char57,
-char58,
-char59,
-char60,
-char61,
-char62,
-char63,
-char64,
-char65,
-char66,
-char67,
-char68,
-char69,
-char70,
-char71,
-char72,
-char73,
-char74,
-char75,
-char76,
-char77,
-char78,
-char79,
-char80,
-char81,
-char82,
-char83,
-char84,
-char85,
-char86,
-char87,
-char88,
-char89,
-char90,
-char91,
-char92,
-char93,
-char94,
-char95,
-char96,
-char97,
-char98,
-char99,
-char100,
-char101,
-char102,
-char103,
-char104,
-char105,
-char106,
-char107,
-char108,
-char109,
-char110,
-char111,
-char112,
-char113,
-char114,
-char115,
-char116,
-char117,
-char118,
-char119,
-char120,
-char121,
-char122,
-char123,
-char124,
-char125,
-char126};
+109,
+115,
+121,
+123,
+128,
+133,
+135,
+138,
+140,
+142,
+144,
+148,
+152,
+156,
+160,
+164,
+168,
+172,
+176,
+180,
+184,
+188,
+191,
+195,
+198,
+200,
+203,
+207,
+215,
+221,
+227,
+233,
+239,
+245,
+249,
+255,
+261,
+265,
+269,
+275,
+279,
+285,
+291,
+297,
+303,
+309,
+315,
+321,
+325,
+331,
+337,
+343,
+347,
+353,
+357,
+362,
+366,
+371,
+374,
+376,
+378,
+381,
+385,
+388,
+392,
+395,
+399,
+403,
+407,
+411,
+416,
+420,
+424,
+429,
+432,
+435,
+439,
+443,
+446,
+449,
+453,
+456,
+459,
+464,
+467,
+471,
+474,
+479,
+483,
+488,
+/* Chars. (header: width, height, size in dwords, yOffset) */
+0x0501010C, /* char32, 5, 1, 1, 12 */
+0x00000000,
+0x030A0300, /* char33, 3, 10, 3, 0 */
+0x40404040,0x40404040,0x00004000,
+0x05030100, /* char34, 5, 3, 1, 0 */
+0x00505050,
+0x080A0300, /* char35, 8, 10, 3, 0 */
+0xFF221212,0x48FF2424,0x00004848,
+0x0C0A0500, /* char37, 12, 10, 5, 0 */
+0x00498030,0x004A0049,0xC0040032,0x20092005,0xC0102009,
+0x090A0500, /* char38, 9, 10, 5, 0 */
+0x00240018,0x00240024,0x00300018,0x00450049,0x80390046,
+0x02030100, /* char39, 2, 3, 1, 0 */
+0x00404040,
+0x040D0400, /* char40, 4, 13, 4, 0 */
+0x40202010,0x40404040,0x20204040,0x00000010,
+0x040D0400, /* char41, 4, 13, 4, 0 */
+0x20404080,0x20202020,0x40402020,0x00000080,
+0x05040100, /* char42, 5, 4, 1, 0 */
+0x5020F820,
+0x08070202, /* char43, 8, 7, 2, 2 */
+0x7F080808,0x00080808,
+0x04030109, /* char44, 4, 3, 1, 9 */
+0x00202020,
+0x04010106, /* char45, 4, 1, 1, 6 */
+0x000000E0,
+0x04010109, /* char46, 4, 1, 1, 9 */
+0x00000040,
+0x040A0300, /* char47, 4, 10, 3, 0 */
+0x20201010,0x40404020,0x00008080,
+0x070A0300, /* char48, 7, 10, 3, 0 */
+0x84848478,0x84848484,0x00007884,
+0x070A0300, /* char49, 7, 10, 3, 0 */
+0x10503010,0x10101010,0x00001010,
+0x070A0300, /* char50, 7, 10, 3, 0 */
+0x04048478,0x20100804,0x0000FC40,
+0x070A0300, /* char51, 7, 10, 3, 0 */
+0x04048478,0x04040438,0x00007884,
+0x070A0300, /* char52, 7, 10, 3, 0 */
+0x28181808,0xFC484828,0x00000808,
+0x070A0300, /* char53, 7, 10, 3, 0 */
+0x8040407C,0x040484F8,0x00007884,
+0x070A0300, /* char54, 7, 10, 3, 0 */
+0x80808478,0x8484C4B8,0x00007884,
+0x070A0300, /* char55, 7, 10, 3, 0 */
+0x100808FC,0x40202010,0x00004040,
+0x070A0300, /* char56, 7, 10, 3, 0 */
+0x84848478,0x84848478,0x00007884,
+0x070A0300, /* char57, 7, 10, 3, 0 */
+0x84848478,0x0404748C,0x00007088,
+0x04070203, /* char58, 4, 7, 2, 3 */
+0x00000040,0x00400000,
+0x04090303, /* char59, 4, 9, 3, 3 */
+0x00000040,0x40400000,0x00000040,
+0x08070202, /* char60, 8, 7, 2, 2 */
+0x40300C02,0x00020C30,
+0x08040103, /* char61, 8, 4, 1, 3 */
+0xFE0000FE,
+0x08070202, /* char62, 8, 7, 2, 2 */
+0x020C3040,0x0040300C,
+0x070A0300, /* char63, 7, 10, 3, 0 */
+0x04444438,0x20201008,0x00002000,
+0x0D0D0700, /* char64, 13, 13, 7, 0 */
+0x4030800F,0x904E2040,0x90A09091,0x20A110A1,0xC09D20A3,0x60201040,0x0000801F,
+0x090A0500, /* char65, 9, 10, 5, 0 */
+0x00140008,0x00140014,0x00220022,0x0041007F,0x80808080,
+0x090A0500, /* char66, 9, 10, 5, 0 */
+0x0041007E,0x00410041,0x0041007E,0x00410041,0x007E0041,
+0x090A0500, /* char67, 9, 10, 5, 0 */
+0x0022001C,0x00400041,0x00400040,0x00410040,0x001C0022,
+0x090A0500, /* char68, 9, 10, 5, 0 */
+0x0042007C,0x00410041,0x00410041,0x00410041,0x007C0042,
+0x090A0500, /* char69, 9, 10, 5, 0 */
+0x0040007F,0x00400040,0x0040007F,0x00400040,0x007F0040,
+0x080A0300, /* char70, 8, 10, 3, 0 */
+0x4040407E,0x4040407C,0x00004040,
+0x0A0A0500, /* char71, 10, 10, 5, 0 */
+0x0021001E,0x00408040,0x80470040,0x80408040,0x001E0021,
+0x090A0500, /* char72, 9, 10, 5, 0 */
+0x00410041,0x00410041,0x0041007F,0x00410041,0x00410041,
+0x030A0300, /* char73, 3, 10, 3, 0 */
+0x40404040,0x40404040,0x00004040,
+0x060A0300, /* char74, 6, 10, 3, 0 */
+0x08080808,0x88080808,0x00007088,
+0x090A0500, /* char75, 9, 10, 5, 0 */
+0x00418040,0x00440042,0x00580048,0x00420064,0x80400041,
+0x070A0300, /* char76, 7, 10, 3, 0 */
+0x40404040,0x40404040,0x00007E40,
+0x0B0A0500, /* char77, 11, 10, 5, 0 */
+0xC0604040,0x4051C060,0x404A4051,0x404A404A,0x40444044,
+0x090A0500, /* char78, 9, 10, 5, 0 */
+0x00610041,0x00510051,0x00490049,0x00450045,0x00410043,
+0x0A0A0500, /* char79, 10, 10, 5, 0 */
+0x0021001E,0x80408040,0x80408040,0x80408040,0x001E0021,
+0x090A0500, /* char80, 9, 10, 5, 0 */
+0x0041007E,0x00410041,0x007E0041,0x00400040,0x00400040,
+0x0A0A0500, /* char81, 10, 10, 5, 0 */
+0x0021001E,0x80408040,0x80408040,0x80468040,0x801E0021,
+0x090A0500, /* char82, 9, 10, 5, 0 */
+0x0041007E,0x00410041,0x007E0041,0x00420044,0x00410042,
+0x090A0500, /* char83, 9, 10, 5, 0 */
+0x0041003E,0x00400041,0x00060038,0x00410001,0x003E0041,
+0x070A0300, /* char84, 7, 10, 3, 0 */
+0x101010FE,0x10101010,0x00001010,
+0x090A0500, /* char85, 9, 10, 5, 0 */
+0x00410041,0x00410041,0x00410041,0x00410041,0x001C0022,
+0x090A0500, /* char86, 9, 10, 5, 0 */
+0x80808080,0x00410041,0x00220022,0x00140014,0x00080008,
+0x0D0A0500, /* char87, 13, 10, 5, 0 */
+0x08850882,0x10451045,0xA0281045,0xA028A028,0x40104010,
+0x070A0300, /* char88, 7, 10, 3, 0 */
+0x28444482,0x44281010,0x00008244,
+0x090A0500, /* char89, 9, 10, 5, 0 */
+0x00220041,0x00140022,0x00080014,0x00080008,0x00080008,
+0x070A0300, /* char90, 7, 10, 3, 0 */
+0x0808047E,0x20201010,0x0000FE40,
+0x040D0400, /* char91, 4, 13, 4, 0 */
+0x40404060,0x40404040,0x40404040,0x00000060,
+0x040A0300, /* char92, 4, 10, 3, 0 */
+0x40408080,0x20202040,0x00001010,
+0x040D0400, /* char93, 4, 13, 4, 0 */
+0x20202060,0x20202020,0x20202020,0x00000060,
+0x05050201, /* char94, 5, 5, 2, 1 */
+0x50505020,0x00000088,
+0x0701010C, /* char95, 7, 1, 1, 12 */
+0x000000FE,
+0x04020100, /* char96, 4, 2, 1, 0 */
+0x00002040,
+0x07070203, /* char97, 7, 7, 2, 3 */
+0x3C044438,0x00344C44,
+0x070A0300, /* char98, 7, 10, 3, 0 */
+0x58404040,0x44444464,0x00007844,
+0x07070203, /* char99, 7, 7, 2, 3 */
+0x40404438,0x00384440,
+0x070A0300, /* char100, 7, 10, 3, 0 */
+0x34040404,0x4444444C,0x00003C44,
+0x07070203, /* char101, 7, 7, 2, 3 */
+0x7C444438,0x00384440,
+0x040A0300, /* char102, 4, 10, 3, 0 */
+0xE0404030,0x40404040,0x00004040,
+0x070A0303, /* char103, 7, 10, 3, 3 */
+0x44444C34,0x04344C44,0x00003844,
+0x070A0300, /* char104, 7, 10, 3, 0 */
+0x58404040,0x44444464,0x00004444,
+0x030A0300, /* char105, 3, 10, 3, 0 */
+0x40000040,0x40404040,0x00004040,
+0x040D0400, /* char106, 4, 13, 4, 0 */
+0x20000020,0x20202020,0x20202020,0x000000C0,
+0x070A0300, /* char107, 7, 10, 3, 0 */
+0x44404040,0x48705048,0x00004448,
+0x030A0300, /* char108, 3, 10, 3, 0 */
+0x40404040,0x40404040,0x00004040,
+0x0B070403, /* char109, 11, 7, 4, 3 */
+0x40668059,0x40444044,0x40444044,0x00004044,
+0x07070203, /* char110, 7, 7, 2, 3 */
+0x44446458,0x00444444,
+0x07070203, /* char111, 7, 7, 2, 3 */
+0x44444438,0x00384444,
+0x070A0303, /* char112, 7, 10, 3, 3 */
+0x44446458,0x40586444,0x00004040,
+0x070A0303, /* char113, 7, 10, 3, 3 */
+0x44444C34,0x04344C44,0x00000404,
+0x04070203, /* char114, 4, 7, 2, 3 */
+0x40406050,0x00404040,
+0x07070203, /* char115, 7, 7, 2, 3 */
+0x38404438,0x00384404,
+0x04090301, /* char116, 4, 9, 3, 1 */
+0x40E04040,0x40404040,0x00000060,
+0x07070203, /* char117, 7, 7, 2, 3 */
+0x44444444,0x003C4444,
+0x05070203, /* char118, 5, 7, 2, 3 */
+0x50508888,0x00202050,
+0x09070403, /* char119, 9, 7, 4, 3 */
+0x80888088,0x00550055,0x00220055,0x00000022,
+0x07070203, /* char120, 7, 7, 2, 3 */
+0x10282844,0x00442828,
+0x070A0303, /* char121, 7, 10, 3, 3 */
+0x28284444,0x10101028,0x00006010,
+0x07070203, /* char122, 7, 7, 2, 3 */
+0x1008087C,0x007C2020,
+0x040D0400, /* char123, 4, 13, 4, 0 */
+0x40404020,0x40804040,0x40404040,0x00000020,
+0x030C0300, /* char124, 3, 12, 3, 0 */
+0x40404040,0x40404040,0x40404040,
+0x040D0400, /* char125, 4, 13, 4, 0 */
+0x20202040,0x20102020,0x20202020,0x00000040,
+0x08020104, /* char126, 8, 2, 1, 4 */
+0x00009E72};

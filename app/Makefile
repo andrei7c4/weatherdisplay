@@ -11,14 +11,18 @@
 BUILD_BASE	= build
 FW_BASE		= firmware
 
+ESP_OPEN_SDK_PATH ?= /esp-open-sdk
+
 # Base directory for the compiler
-XTENSA_TOOLS_ROOT ?= /home/andrei/esp-open-sdk/xtensa-lx106-elf/bin
+XTENSA_TOOLS_ROOT ?= $(ESP_OPEN_SDK_PATH)/xtensa-lx106-elf/bin
 
 # base directory of the ESP8266 SDK package, absolute
-SDK_BASE	?= /home/andrei/esp-open-sdk/sdk
+SDK_BASE ?= $(ESP_OPEN_SDK_PATH)/sdk
 
 # esptool path and port
-ESPTOOL ?= /home/andrei/esp-open-sdk/esptool/esptool.py
+ESPTOOL_DIR ?= $(ESP_OPEN_SDK_PATH)/esptool
+ESPTOOL_PY ?= esptool.py
+ESPTOOL ?= $(ESPTOOL_DIR)/$(ESPTOOL_PY)
 ESPPORT ?= /dev/ttyUSB0
 # Baud rate for programmer
 BAUD ?= 115200
@@ -117,7 +121,7 @@ endif
 TARGET = app
 
 # which modules (subdirectories) of the project to include in compiling
-MODULES	= src src/drivers src/contikijson src/fonts  
+MODULES	= src src/drivers src/displays src/contikijson src/fonts  
 EXTRA_INCDIR = include $(SDK_BASE)/../extra/include
 
 # libraries used in this project, mainly provided by the SDK

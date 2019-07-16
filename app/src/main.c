@@ -7,26 +7,24 @@
 #include <espconn.h>
 #include <mem.h>
 
+#include "display.h"
+#include "graphics.h"
 #include "common.h"
 #include "debug.h"
-#include "parsejson.h"
+#include "parseobjects.h"
 #include "config.h"
 #include "retain.h"
 #include "conv.h"
-#include "dispspi.h"
-#include "display.h"
 #include "gui.h"
 #include "datetime.h"
 #include "drivers/uart.h"
-
-
 
 LOCAL const char *openWeatherMapHost = "api.openweathermap.org";
 LOCAL const char *thingSpeakHost = "api.thingspeak.com";
 LOCAL const char *tsFieldName = "field1";
 
 #define HTTP_MSG_MAX_LEN	16000
-LOCAL char httpMsgRxBuf[HTTP_MSG_MAX_LEN];
+LOCAL char *httpMsgRxBuf = NULL;
 LOCAL char httpMsgTxBuf[200];
 LOCAL int httpMsgCurLen = 0;
 
@@ -41,9 +39,10 @@ LOCAL CurWeather curWeather;
 LOCAL Forecast forecastHourly[FORECAST_HOURLY_SIZE];
 LOCAL Forecast forecastDaily[FORECAST_DAILY_SIZE];
 LOCAL char indoorTempStr[8] = "";
-LOCAL struct tm *curTime = NULL;
+struct tm curTime = {0};
 
 LOCAL int dispUpdateDone = FALSE;
+LOCAL int wifiSleeping = FALSE;
 LOCAL const uint sleepTimeLong = 60UL*60UL*1000000UL;
 
 LOCAL const uint dnsCheckInterval = 100;
@@ -84,8 +83,9 @@ LOCAL void onTcpDataReceived(void *arg, char *pusrdata, unsigned short length);
 LOCAL void onTcpDisconnected(void *arg);
 LOCAL void onTcpConnFailed(void *arg, sint8 err);
 LOCAL void timeoutTmrCb(void);
-LOCAL void parseHttpReply(void);
+LOCAL void handleHttpReply(void);
 LOCAL int createDailyFromHourly(const Forecast *hourly, int hCount, Forecast *daily, int dailySize);
+LOCAL void wifiOff(void);
 LOCAL void gotoSleep(int success);
 
 
@@ -93,11 +93,13 @@ void user_init(void)
 {
 	os_timer_disarm(&gpTmr);
 	os_timer_disarm(&httpRxTmr);
-	os_timer_setfn(&httpRxTmr, (os_timer_func_t *)parseHttpReply, NULL);
+	os_timer_setfn(&httpRxTmr, (os_timer_func_t *)handleHttpReply, NULL);
 	os_timer_disarm(&timeoutTmr);	// timeout timer, normally should never fire
 	os_timer_setfn(&timeoutTmr, (os_timer_func_t *)timeoutTmrCb, NULL);
 
-	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+	//uart_init(BIT_RATE_115200, BIT_RATE_115200);
+	uart_init(BIT_RATE_921600, BIT_RATE_921600);
+	os_printf("\n\n");
 
 	retainRead(&retain);
 	if (retain.longSleepCnt > 0)
@@ -108,13 +110,15 @@ void user_init(void)
 		system_deep_sleep(sleepTimeLong);
 		return;
 	}
+	retain.attempts++;
+
 	configRead(&config);
 
 	debug("Built on %s %s\n", __DATE__, __TIME__);
 	debug("SDK version %s\n", system_get_sdk_version());
 	debug("attempts %u, fails %u, retry %u\n", retain.attempts, retain.fails, retain.retry);
 
-	dispSpiInit();
+	dispIfaceInit();
 
 	setAppState(stateConnectToAp);
 	wifi_set_opmode(STATION_MODE);
@@ -289,7 +293,9 @@ LOCAL void ICACHE_FLASH_ATTR sendHttpRequest(void)
 			"GET /update?api_key=%s&%s=%s HTTP/1.1\r\nHost: %s\r\n\r\n",
 			config.tsApiKey, tsFieldName, indoorTempStr, thingSpeakHost);
 		break;
-	default: return;
+	default:
+		debug("sendHttpRequest appState %d\n", appState);
+		return;
 	}
 
 	httpMsgCurLen = 0;
@@ -315,35 +321,58 @@ LOCAL void ICACHE_FLASH_ATTR onTcpDataSent(void *arg)
 LOCAL void ICACHE_FLASH_ATTR onTcpDataReceived(void *arg, char *pusrdata, unsigned short length)
 {
 	debug("onTcpDataReceived %d\n", length);
+	if (appState == stateGetWeather || appState == stateGetForecast)
+	{
+		if (!httpMsgRxBuf)
+		{
+			httpMsgRxBuf = os_malloc(HTTP_MSG_MAX_LEN);
+			debug("free heap %u\n", system_get_free_heap_size());
+			if (!httpMsgRxBuf)
+			{
+				debug("httpMsgRxBuf malloc failed\n");
+				return;
+			}
+		}
 
-	if ((HTTP_MSG_MAX_LEN-httpMsgCurLen) > length)
-	{
-		os_memcpy(httpMsgRxBuf+httpMsgCurLen, pusrdata, length);
-		httpMsgCurLen += length;
-		os_timer_disarm(&httpRxTmr);
-		os_timer_arm(&httpRxTmr, 100, 0);
+		if ((HTTP_MSG_MAX_LEN-httpMsgCurLen) > length)
+		{
+			os_memcpy(httpMsgRxBuf+httpMsgCurLen, pusrdata, length);
+			httpMsgCurLen += length;
+			os_timer_disarm(&httpRxTmr);
+			os_timer_arm(&httpRxTmr, 100, 0);
+		}
+		else
+		{
+			debug("http message too long\n");
+		}
 	}
-	else
+	else if (appState == stateWaitDispUpdate)
 	{
-		debug("http message too long\n");
+	    // ignore reply from ThingSpeak
+	    espconn_disconnect(&tcpSock);
 	}
 }
 
 LOCAL void ICACHE_FLASH_ATTR onTcpDisconnected(void *arg)
 {
 	debug("onTcpDisconnected\n");
-	if (appState == stateGetWeather ||
-		appState == stateGetForecast)
+	switch (appState)
 	{
+	case stateGetWeather:
+	case stateGetForecast:
 		debug("reconnect to owm\n");
 		setAppState(stateConnectToOwm);
 		espconn_connect(&tcpSock);
-	}
-	else if (appState == stateSendTempToTs)
-	{
+		break;
+	case stateSendTempToTs:
 		debug("reconnect to ts\n");
 		setAppState(stateConnectToTs);
 		espconn_connect(&tcpSock);
+		break;
+	case stateWaitDispUpdate:
+		// no need for wifi anymore, turn off to save battery
+		wifiOff();
+		break;
 	}
 }
 
@@ -357,73 +386,108 @@ LOCAL void ICACHE_FLASH_ATTR onTcpConnFailed(void *arg, sint8 err)
 }
 
 
-LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
+LOCAL void ICACHE_FLASH_ATTR handleHttpReply(void)
 {
 	os_timer_disarm(&gpTmr);
-	httpMsgRxBuf[httpMsgCurLen] = 0;
-	debug("parseHttpReply %d\n", httpMsgCurLen);
-	//os_printf("%s\n", httpMsgRxBuf);
+	httpMsgRxBuf[httpMsgCurLen] = '\0';
+	debug("httpMsgCurLen %d\n", httpMsgCurLen);
+	//debug("%s\n", httpMsgRxBuf);
 
-	if (appState != stateGetWeather &&
-		appState != stateGetForecast)
-	{
-		return;
-	}
-
-	int msgValid = FALSE;
-	char *body = (char*)os_strstr(httpMsgRxBuf, "\r\n\r\n");
-	char *json = NULL;
+	int validReply = FALSE;
+    int statusCode = 0;
+	const char *body = os_strstr(httpMsgRxBuf, "\r\n\r\n");
+	const char *json = NULL;
 	if (body)
 	{
-		json = (char*)os_strstr(body, "{");
+		json = os_strstr(body, "{");
 		if (json)
 		{
+		    int jsonLen = httpMsgCurLen - (json - httpMsgRxBuf);
 			if (appState == stateGetWeather)
 			{
-				if (parseWeather(json, &curWeather) == OK)
+			    ParsedFields parsed = parseWeather(json, jsonLen,
+			                                       &curWeather,
+			                                       retain.cityId, sizeof(retain.cityId),
+			                                       &statusCode);
+				if (parsed == eWeatherAllParsed)
 				{
-					msgValid = TRUE;
+					validReply = TRUE;
 					setAppState(stateGetForecast);
 					sendHttpRequest();
 				}
 				else
 				{
-					debug("parseWeather failed\n");
+					debug("parseWeather failed (0x%02X, %d)\n", parsed, statusCode);
 				}
 			}
 			else if (appState == stateGetForecast)
 			{
-				int hourlyCount = parseForecast(json, forecastHourly, FORECAST_HOURLY_SIZE);
+				int hourlyCount = parseForecast(json, jsonLen,
+				                                forecastHourly, FORECAST_HOURLY_SIZE,
+				                                &statusCode);
 				if (hourlyCount > 0)
 				{
-					msgValid = TRUE;
+					validReply = TRUE;
 
-					int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
+					os_free(httpMsgRxBuf);	// all the data is parsed now -> we can free the buffer
+					httpMsgRxBuf = NULL;
 
-					float indoorTemp;
+					float indoorTemp = 0;
 					if (dispReadTemp(&indoorTemp) == OK)
 					{
-						int integer = (int)indoorTemp;
-						int fract = (int)((indoorTemp-integer)*10.0);
-						ets_snprintf(indoorTempStr, sizeof(indoorTempStr), "%d.%d", integer, fract);
+					    int intpart;
+					    int fractpart = modfInt(indoorTemp, 1, &intpart);
+						ets_snprintf(indoorTempStr, sizeof(indoorTempStr), "%d.%d", intpart, fractpart);
 					}
 
-					curTime = (struct tm*)os_zalloc(sizeof(struct tm));
-					if (epochToTm(curWeather.datetime + config.utcoffset, curTime) != OK)
-					{
-						os_free(curTime);
-						curTime = NULL;
-					}
+					epochToTm(curWeather.datetime, &curTime);
 
-					hourlyCount = (config.chart == eHourlyChart || config.chart == eBothCharts) ?
-									MIN(hourlyCount, FORECAST_HOURLY_CHART_CNT) : 0;
-					dailyCount = (config.chart == eNoChart || config.chart == eHourlyChart) ?
-									MIN(dailyCount, 3) : dailyCount;
+					Forecast* hourlyShown = NULL;
+                    Forecast* dailyShown = NULL;
+					int hourlyShownCnt = 0;
+					int dailyShownCnt = 0;
+				    switch (config.chart)
+				    {
+				    case eNoChart:
+				    {
+                        int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
+                        dailyShown = forecastDaily;
+                        dailyShownCnt = MIN(dailyCount, FORECAST_DAILY_CNT);
+				    }
+				        break;
+				    case eHourlyChart:
+				    {
+				        hourlyShown = forecastHourly;
+				        hourlyShownCnt = MIN(hourlyCount, FORECAST_HOURLY_CHART_CNT);
 
-					if (!retainedWeatherEqual(&curWeather, forecastHourly, hourlyCount, forecastDaily, dailyCount, indoorTemp))
+				        int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
+				        dailyShown = forecastDaily + 1;    // skip first day in daily
+				        dailyShownCnt = MIN(dailyCount - 1, FORECAST_DAILY_CNT);
+				    }
+				        break;
+				    case eDailyChart:
+				    case eBothCharts:
+				        hourlyShown = forecastHourly;
+				        hourlyShownCnt = hourlyCount;
+				        break;
+				    }
+
+					if (!retainedWeatherEqual(&curWeather, hourlyShown, hourlyShownCnt, dailyShown, dailyShownCnt, indoorTemp))
 					{
 						// save current weather and forecast in rtc memory
-						retainWeather(&curWeather, forecastHourly, hourlyCount, forecastDaily, dailyCount, indoorTemp);
+						retainWeather(&curWeather, hourlyShown, hourlyShownCnt, dailyShown, dailyShownCnt, indoorTemp);
+
+						if (!gfxMem)	// alloc buffer for graphics
+						{
+							gfxMemAlloc();
+							debug("free heap %u\n", system_get_free_heap_size());
+							if (!gfxMem)
+							{
+								return;
+							}
+						}
+
+						dispRegSetup();
 
 						// draw current weather and forecast on the screen
 						switch (config.chart)
@@ -431,32 +495,60 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 						case eNoChart:
 							drawCurrentWeather(&curWeather);
 							dispUpdate(eDispTopPart);
-							drawForecast(forecastDaily, dailyCount, curTime);
-							drawIndoorTemp(indoorTempStr);
+
+							drawForecast(dailyShown, dailyShownCnt);
+
+                            #if GUI_SCALE == 1
+                                drawIndoorTempSmall(indoorTempStr);
+							#elif GUI_SCALE == 2
+								drawIndoorTemp(indoorTempStr);
+							#endif
 							break;
 						case eHourlyChart:
 							drawCurrentWeatherSmall(&curWeather);
-							drawHourlyForecastChart(forecastHourly, hourlyCount);
+
+							drawHourlyForecastChart(hourlyShown, hourlyShownCnt);
 							dispUpdate(eDispTopPart);
-							drawForecast(forecastDaily, dailyCount, curTime);
-							drawIndoorTemp(indoorTempStr);
+
+                            drawForecast(dailyShown, dailyShownCnt);
+
+                            #if GUI_SCALE == 1
+                                drawIndoorTempSmall(indoorTempStr);
+							#elif GUI_SCALE == 2
+						        drawIndoorTemp(indoorTempStr);
+							#endif
 							break;
 						case eDailyChart:
+						{
 							drawCurrentWeather(&curWeather);
 							dispUpdate(eDispTopPart);
-							drawDailyForecastChart(forecastDaily, dailyCount);
+
+							int dailyCount = createDailyFromHourly(forecastHourly, hourlyCount, forecastDaily, FORECAST_DAILY_SIZE);
+							drawDailyForecastChart(forecastHourly, hourlyCount, forecastDaily, dailyCount);
+
 							drawIndoorTempSmall(indoorTempStr);
+						}
 							break;
 						case eBothCharts:
 							drawCurrentWeatherSmall(&curWeather);
-							drawHourlyForecastChart(forecastHourly, hourlyCount);
+
+							drawHourlyForecastChart(hourlyShown, hourlyShownCnt);
 							dispUpdate(eDispTopPart);
-							drawDailyForecastChart(forecastDaily, dailyCount);
+
+							if(hourlyCount > FORECAST_HOURLY_CHART_CNT)
+							{
+							    Forecast *hourly = forecastHourly + FORECAST_HOURLY_CHART_CNT;
+							    int houtlyCnt = hourlyCount - FORECAST_HOURLY_CHART_CNT;
+	                            int dailyCount = createDailyFromHourly(hourly, houtlyCnt, forecastDaily, FORECAST_DAILY_SIZE);
+	                            drawDailyForecastChart(hourly, houtlyCnt, forecastDaily, dailyCount);
+							}
+
 							drawIndoorTempSmall(indoorTempStr);
 							break;
 						}
 
-						drawMetaInfo(curTime, retain.fails, retain.updates, retain.attempts);
+						retain.updates++;
+						drawMetaInfo(retain.fails, retain.updates, retain.attempts);
 						dispUpdate(eDispBottomPart);
 						// dispUpdateDoneCb will be called later
 
@@ -478,25 +570,26 @@ LOCAL void ICACHE_FLASH_ATTR parseHttpReply(void)
 						else
 						{
 							setAppState(stateWaitDispUpdate);
-							//gotoSleep(TRUE);
+							espconn_disconnect(&tcpSock);
 						}
 					}
 					else	// no significant change in weather or forecast
 					{		// go to sleep without updating the display (saves battery)
+						debug("same weather\n");
 						gotoSleep(TRUE);
 					}
 				}
 				else
 				{
-					debug("parseForecast failed\n");
+					debug("parseForecast failed (%d)\n", statusCode);
 				}
 			}
 		}
 	}
 
-	if (!msgValid)
+	if (!validReply)
 	{
-		if (json && !os_strncmp(json, "{\"cod\":\"404\"", 12))
+		if (statusCode == 404)
 		{
 			// city not found or service down
 			debug("OWM 404\n");
@@ -580,9 +673,8 @@ LOCAL int ICACHE_FLASH_ATTR createDailyFromHourly(const Forecast *hourly, int hC
 	int curHour;
 	int midDaySet = FALSE;
 	daily[0].datetime = hourly[0].datetime;
-	daily[0].temp.min = hourly[0].temp.val;
-	daily[0].temp.max = hourly[0].temp.val;
-	daily[0].rainsnow = hourly[0].rainsnow;
+	daily[0].value.tempMin = hourly[0].value.temp;
+	daily[0].value.tempMax = hourly[0].value.temp;
 	IconCnt iconCnts[8];	// hourly results interval is 3h so max 8 icons per day
 	os_memset(iconCnts, 0, sizeof(iconCnts));
 	incrementIconCnt(iconCnts, NELEMENTS(iconCnts), hourly[0].icon);
@@ -602,9 +694,8 @@ LOCAL int ICACHE_FLASH_ATTR createDailyFromHourly(const Forecast *hourly, int hC
 			}
 			midDaySet = FALSE;
 			daily[j].datetime = hourly[i].datetime;
-			daily[j].temp.min = hourly[i].temp.val;
-			daily[j].temp.max = hourly[i].temp.val;
-			daily[j].rainsnow = hourly[i].rainsnow;
+			daily[j].value.tempMin = hourly[i].value.temp;
+			daily[j].value.tempMax = hourly[i].value.temp;
 			os_memset(iconCnts, 0, sizeof(iconCnts));	// reset icon counts
 		}
 		else
@@ -614,26 +705,25 @@ LOCAL int ICACHE_FLASH_ATTR createDailyFromHourly(const Forecast *hourly, int hC
 				midDaySet = TRUE;
 				daily[j].datetime = hourly[i].datetime;
 			}
-			if (hourly[i].temp.val < daily[j].temp.min)
-				daily[j].temp.min = hourly[i].temp.val;
-			if (hourly[i].temp.val > daily[j].temp.max)
-				daily[j].temp.max = hourly[i].temp.val;
-			daily[j].rainsnow += hourly[i].rainsnow;
+			if (hourly[i].value.temp < daily[j].value.tempMin)
+				daily[j].value.tempMin = hourly[i].value.temp;
+			if (hourly[i].value.temp > daily[j].value.tempMax)
+				daily[j].value.tempMax = hourly[i].value.temp;
 		}
 		incrementIconCnt(iconCnts, NELEMENTS(iconCnts), hourly[i].icon);
 	}
 	daily[j].icon = getMostFrequentIcon(iconCnts, NELEMENTS(iconCnts));
+
 	return j+1;
 }
 
 
-void ICACHE_FLASH_ATTR dispUpdateDoneCb(uint16 rv)
+void ICACHE_FLASH_ATTR dispUpdateDoneCb(int rv)
 {
-	debug("dispUpdateDoneCb %x\n", rv);
+	debug("dispUpdateDoneCb %d\n", rv);
 	dispUpdateDone = TRUE;
 	if (appState == stateWaitDispUpdate)
 	{
-		retain.updates++;
 		gotoSleep(TRUE);
 	}
 }
@@ -644,24 +734,37 @@ LOCAL void ICACHE_FLASH_ATTR timeoutTmrCb(void)
 	gotoSleep(FALSE);
 }
 
+LOCAL void ICACHE_FLASH_ATTR wifiOff(void)
+{
+	if (!wifiSleeping)
+	{
+		debug("wifiSleep\n");
+		wifiSleeping = TRUE;
+		wifi_station_disconnect();
+		wifi_set_opmode_current(NULL_MODE);
+		wifi_fpm_set_sleep_type(MODEM_SLEEP_T);
+		wifi_fpm_open();
+		wifi_fpm_do_sleep(0xFFFFFFFF);
+	}
+}
+
 LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 {
 	uint sleepTime;
 
 	setAppState(stateGotoSleep);
-	dispOff();
-	retain.attempts++;
+	dispTurnOff();
 
 	if (success)
 	{
 		retain.retry = 0;
-		if (curTime)
+		if (curTime.valid)
 		{
-			if (curTime->tm_hour >= 0 && curTime->tm_hour <= 3)
+			if (curTime.tm_hour >= 0 && curTime.tm_hour <= 3)
 			{
 				sleepTime = sleepTimeLong;
 				retain.longSleepCnt = 2;
-				if ((curTime->tm_hour+retain.longSleepCnt) > 3)	// if last long sleep
+				if ((curTime.tm_hour+retain.longSleepCnt) > 3)	// if this is last long sleep period
 				{
 					// renew ip on the next wake-up
 					os_memset(&retain.ipConfig, 0, sizeof(retain.ipConfig));
@@ -696,4 +799,3 @@ LOCAL void ICACHE_FLASH_ATTR gotoSleep(int success)
 	retainWrite(&retain);
 	system_deep_sleep(sleepTime);
 }
-

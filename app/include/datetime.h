@@ -12,9 +12,13 @@ struct tm
 	int tm_wday;
 	int tm_yday;
 	int tm_isdst;
+	int valid;
 };
 
+extern struct tm curTime;
+
 int epochToTm(long long t, struct tm *tm);
+int epochToWeekday(long long t);
 int epochToHours(long long t);
 
 

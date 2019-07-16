@@ -25,11 +25,12 @@
 #ifndef SPI_APP_H
 #define SPI_APP_H
 
-#include "../drivers/spi_register.h"
-#include "ets_sys.h"
-#include "osapi.h"
-//#include "uart.h"
-#include "os_type.h"
+#include <ets_sys.h>
+#include <osapi.h>
+#include <os_type.h>
+#include <gpio.h>
+#include "spi_register.h"
+
 
 //Define SPI hardware modules
 #define SPI 0
@@ -45,18 +46,19 @@
 #define CPU_CLK_FREQ 80*1000000
 #endif
 
-//Define some default SPI clock settings
-#define SPI_CLK_PREDIV 10
-#define SPI_CLK_CNTDIV 3
-#define SPI_CLK_FREQ CPU_CLK_FREQ/(SPI_CLK_PREDIV*SPI_CLK_CNTDIV) // 80 / 20 = 4 MHz
+typedef union
+{
+	struct
+	{
+		unsigned miso: 1;
+		unsigned mosi: 1;
+		unsigned cs:   1;
+	};
+	uint8 pins;
+}HSpiPins;
 
-
-
-
-
-void spi_init(uint8 spi_no);
+void spi_init(uint8 spi_no, uint16 prediv, uint8 cntdiv, HSpiPins pins);
 void spi_mode(uint8 spi_no, uint8 spi_cpha,uint8 spi_cpol);
-void spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk);
 void spi_clock(uint8 spi_no, uint16 prediv, uint8 cntdiv);
 void spi_tx_byte_order(uint8 spi_no, uint8 byte_order);
 void spi_rx_byte_order(uint8 spi_no, uint8 byte_order);
@@ -75,5 +77,13 @@ uint32 spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 add
 #define spi_rx16(spi_no)      spi_transaction(spi_no, 0, 0, 0, 0, 0, 0, 16,   0)
 #define spi_rx32(spi_no)      spi_transaction(spi_no, 0, 0, 0, 0, 0, 0, 32,   0)
 
-#endif
 
+#define spi_hw_cs_disable()	do{ \
+	GPIO_OUTPUT_SET(15, 1);		\
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15); \
+}while (0)
+
+#define spi_hw_cs_enable() PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, 2)
+
+
+#endif

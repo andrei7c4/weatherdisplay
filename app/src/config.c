@@ -2,9 +2,10 @@
 #include <osapi.h>
 #include <user_interface.h>
 #include "config.h"
+#include "display.h"
+#include "graphics.h"
 #include "retain.h"
 #include "conv.h"
-#include "display.h"
 #include "debug.h"
 
 
@@ -246,7 +247,18 @@ LOCAL int ICACHE_FLASH_ATTR resetConfig(const char *value, uint valueLen)
 
 LOCAL int ICACHE_FLASH_ATTR clearDisp(const char *value, uint valueLen)
 {
-	dispFillMem(0x00);
+	if (gfxMem)
+	{
+		gfxMemFill(0x00);
+	}
+	else
+	{
+		if (gfxMemAlloc() != OK)
+		{
+			return ERROR;
+		}
+	}
+
 	dispUpdate(eDispTopPart);
 	dispUpdate(eDispBottomPart);
 	while (1);	// let wdt reset

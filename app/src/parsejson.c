@@ -1,265 +1,192 @@
 #include <os_type.h>
-#include <osapi.h>
-#include "contikijson/jsonparse.h"
-#include "contikijson/jsontree.h"
+#include <mem.h>
+#include <string.h>
 #include "parsejson.h"
-#include "common.h"
-#include "debug.h"
-#include "conv.h"
-#include "icons.h"
-#include "retain.h"
+#include "typedefs.h"
 
 
-LOCAL int ICACHE_FLASH_ATTR jumpToNextType(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name, int stopOnDepthChange)
+LOCAL void pathAlloc(Path *path, size_t size);
+LOCAL void pathPush(Path *path, const char *str);
+LOCAL const char* pathGetLast(Path *path);
+LOCAL void pathReplaceLast(Path *path, const char *str);
+LOCAL void pathPop(Path *path);
+LOCAL int pathEqual(const Path *p1, const Path *p2);
+
+void ICACHE_FLASH_ATTR parsejson(const char *json, int jsonLen, PathCbPair *callbacks, size_t callbacksSize, void *object)
 {
-	int json_type;
-	while((json_type = jsonparse_next(state)) != 0)
-	{
-		if (depth == state->depth && json_type == type)
-		{
-			if (name)
-			{
-				jsonparse_copy_value(state, buf, bufSize);
-				if (!os_strncmp(buf, name, bufSize))
-				{
-					return 1;
-				}
-			}
-			else
-			{
-				return 1;
-			}
-		}
-		else if (state->depth < depth && stopOnDepthChange)
-		{
-			return 0;
-		}
-	}
-	return 0;
+    int type;
+    int curDepth = 0;
+
+    Path path;
+    pathAlloc(&path, JSONPARSE_MAX_DEPTH);
+
+    struct jsonparse_state state;
+    jsonparse_setup(&state, json, jsonLen);
+
+    while ((type = jsonparse_next(&state)) != 0)
+    {
+        if (state.depth > curDepth)
+        {
+            char *str = os_malloc(2);
+            str[0] = (char)type;
+            str[1] = '\0';
+            pathPush(&path, str);
+        }
+        else if (state.depth < curDepth)
+        {
+            pathPop(&path);
+        }
+        curDepth = state.depth;
+
+        if (type == JSON_TYPE_PAIR_NAME)
+        {
+            size_t strLen = jsonparse_get_len(&state);
+            char *str = os_malloc(strLen+1);
+            jsonparse_copy_value(&state, str, strLen+1);
+            pathReplaceLast(&path, str);
+
+            // search matching callbacks for current path
+            size_t i;
+            for (i = 0; i < callbacksSize; i++)
+            {
+                PathCbPair *pathCb = &callbacks[i];
+                if (pathEqual(&path, &pathCb->path) && pathCb->callback)
+                {
+                    type = jsonparse_next(&state);
+                    if (type)
+                    {
+                        strLen = jsonparse_get_len(&state);
+                        str = os_malloc(strLen+1);
+                        jsonparse_copy_value(&state, str, strLen+1);
+                        pathCb->callback(str, strLen, type, object);
+                        os_free(str);
+                    }
+                    else
+                    {
+                        goto parseout;
+                    }
+                    break;
+                }
+            }
+        }
+        else if (type == JSON_TYPE_OBJECT)
+        {
+            size_t i;
+            for (i = 0; i < callbacksSize; i++)
+            {
+                PathCbPair *pathCb = &callbacks[i];
+                if (pathEqual(&path, &pathCb->path) && pathCb->callback)
+                {
+                    pathCb->callback(NULL, 0, type, object);
+                    break;
+                }
+            }
+        }
+    }
+parseout:
+    pathFree(&path, TRUE);
 }
 
-LOCAL int ICACHE_FLASH_ATTR jumpToNextType2(struct jsonparse_state *state, char *buf, int bufSize, int depth, int type, char *name1, char *name2, int stopOnDepthChange)
+
+void ICACHE_FLASH_ATTR pathInit_(Path *path, const char *str1, ...)
 {
-	int json_type;
-	while((json_type = jsonparse_next(state)) != 0)
-	{
-		if (depth == state->depth && json_type == type)
-		{
-			jsonparse_copy_value(state, buf, bufSize);
-			if (!os_strncmp(buf, name1, bufSize) ||
-				!os_strncmp(buf, name2, bufSize))
-			{
-				return 1;
-			}
-		}
-		else if (state->depth < depth && stopOnDepthChange)
-		{
-			return 0;
-		}
-	}
-	return 0;
+    va_list args;
+
+    // get arguments count
+    va_start(args, str1);
+    const char *str = str1;
+    size_t count = 0;
+    while(str)
+    {
+        count++;
+        str = va_arg(args, char*);
+    }
+    va_end(args);
+
+    // allocate space and copy pointers to strings
+    pathAlloc(path, count);
+    va_start(args, str1);
+    str = str1;
+    while(str)
+    {
+        pathPush(path, str);
+        str = va_arg(args, char*);
+    }
+    va_end(args);
 }
 
-int ICACHE_FLASH_ATTR parseWeather(char *data, CurWeather *curWeather)
+void ICACHE_FLASH_ATTR pathFree(Path *path, int freeSegments)
 {
-	char buf[128];
-	int json_type;
-	struct jsonparse_state state;
-
-	jsonparse_setup(&state, data, os_strlen(data));
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "weather", 0))
-		return ERROR;
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_ARRAY, NULL, 0))
-		return ERROR;
-
-//	if (!jumpToNextType(&state, buf, sizeof(buf),
-//			3, JSON_TYPE_OBJECT, NULL, 0))
-//		return ERROR;
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			3, JSON_TYPE_PAIR_NAME, "description", 0))
-		return ERROR;
-
-	if (jsonparse_next(&state) != JSON_TYPE_STRING)
-		return ERROR;
-
-	jsonparse_copy_value(&state, buf, sizeof(buf));
-	debug("weather description: %s\n", buf);
-	os_strncpy(curWeather->description, buf, sizeof(curWeather->description)-1);
-	curWeather->description[sizeof(curWeather->description)-1] = '\0';
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			3, JSON_TYPE_PAIR_NAME, "icon", 0))
-		return ERROR;
-
-	if (jsonparse_next(&state) != JSON_TYPE_STRING)
-		return ERROR;
-
-	jsonparse_copy_value(&state, buf, sizeof(buf));
-	debug("weather icon: %s\n", buf);
-	os_strcpy(curWeather->icon.str,
-		os_strlen(buf) < sizeof(curWeather->icon) ? buf : "");
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "main", 0))
-		return ERROR;
-
-//	if (!jumpToNextType(&state, buf, sizeof(buf),
-//			2, JSON_TYPE_OBJECT, NULL, 0))
-//		return ERROR;
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_PAIR_NAME, "temp", 0))
-		return ERROR;
-
-	if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-		return ERROR;
-
-	jsonparse_copy_value(&state, buf, sizeof(buf));
-	curWeather->temperature = strtofloat(buf);
-	debug("temperature: %s\n", buf);
-
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "dt", 0))
-		return ERROR;
-
-	if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-		return ERROR;
-
-	jsonparse_copy_value(&state, buf, sizeof(buf));
-	curWeather->datetime = strtoint(buf);
-	debug("datetime: %s\n", buf);
-
-	if (!retain.cityId[0])
-	{
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				1, JSON_TYPE_PAIR_NAME, "id", 0))
-			return ERROR;
-
-		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-			return ERROR;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		if (os_strlen(buf) >= sizeof(retain.cityId))
-			return ERROR;
-
-		os_strcpy(retain.cityId, buf);
-		debug("cityId: %s\n", retain.cityId);
-	}
-	return OK;
+    if (freeSegments)
+    {
+        while(path->count)
+        {
+            path->count--;
+            os_free(path->segments[path->count]);
+        }
+    }
+    os_free(path->segments);
+    path->capacity = 0;
+    path->count = 0;
 }
 
-/// returns number of successfully parsed items
-int ICACHE_FLASH_ATTR parseForecast(char *data, Forecast *forecast, int forecastSize)
+LOCAL void ICACHE_FLASH_ATTR pathAlloc(Path *path, size_t size)
 {
-	char buf[128];
-	int json_type;
-	struct jsonparse_state state;
+    path->segments = os_malloc(size * sizeof(char*));
+    path->capacity = size;
+    path->count = 0;
+}
 
-	jsonparse_setup(&state, data, os_strlen(data));
+LOCAL void ICACHE_FLASH_ATTR pathPush(Path *path, const char *str)
+{
+    if (path->count < path->capacity)
+    {
+        path->segments[path->count] = (char*)str;
+        path->count++;
+    }
+}
 
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "cnt", 0))
-		return 0;
+LOCAL ICACHE_FLASH_ATTR const char* pathGetLast(Path *path)
+{
+    if (path->count)
+    {
+        return path->segments[path->count - 1];
+    }
+    return NULL;
+}
 
-	if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-		return 0;
-	int count = jsonparse_get_value_as_int(&state);
-	if (count > forecastSize)
-		count = forecastSize;
+LOCAL void ICACHE_FLASH_ATTR pathReplaceLast(Path *path, const char *str)
+{
+    if (path->count)
+    {
+        os_free(path->segments[path->count - 1]);
+        path->segments[path->count - 1] = (char*)str;
+    }
+}
 
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			1, JSON_TYPE_PAIR_NAME, "list", 0))
-		return 0;
+LOCAL void ICACHE_FLASH_ATTR pathPop(Path *path)
+{
+    if (path->count)
+    {
+        path->count--;
+        os_free(path->segments[path->count]);
+        path->segments[path->count] = NULL;
+    }
+}
 
-	if (!jumpToNextType(&state, buf, sizeof(buf),
-			2, JSON_TYPE_ARRAY, NULL, 0))
-		return 0;
-
-	int i;
-	for (i = 0; i < count; i++)
-	{
-//		if (!jumpToNextType(&state, buf, sizeof(buf),
-//				3, JSON_TYPE_OBJECT, NULL), 0)
-//			return i;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "dt", 0))
-			return i;
-
-		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-			return i;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		forecast[i].datetime = strtoint(buf);
-		debug("forecast[%d] dt: %s\n", i, buf);
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "main", 0))
-			return i;
-
-//		if (!jumpToNextType(&state, buf, sizeof(buf),
-//				4, JSON_TYPE_OBJECT, NULL, 0))
-//			return i;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_PAIR_NAME, "temp", 0))
-			return i;
-
-		if (jsonparse_next(&state) != JSON_TYPE_NUMBER)
-			return i;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		forecast[i].temp.val = strtofloat(buf);
-		debug("forecast[%d] temp: %s\n", i, buf);
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "weather", 0))
-			return i;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				4, JSON_TYPE_ARRAY, NULL, 0))
-			return i;
-
-//		if (!jumpToNextType(&state, buf, sizeof(buf),
-//				5, JSON_TYPE_OBJECT, NULL, 0))
-//			return i;
-
-		if (!jumpToNextType(&state, buf, sizeof(buf),
-				5, JSON_TYPE_PAIR_NAME, "icon", 0))
-			return i;
-
-		if (jsonparse_next(&state) != JSON_TYPE_STRING)
-			return i;
-
-		jsonparse_copy_value(&state, buf, sizeof(buf));
-		debug("forecast[%d] icon: %s\n", i, buf);
-		os_strcpy(forecast[i].icon.str,
-			os_strlen(buf) < sizeof(forecast[i].icon) ? buf : "");
-
-		forecast[i].rainsnow = 0;
-		while (jumpToNextType2(&state, buf, sizeof(buf),
-				3, JSON_TYPE_PAIR_NAME, "rain", "snow", 1))
-		{
-//			if (jumpToNextType(&state, buf, sizeof(buf),
-//					4, JSON_TYPE_OBJECT, NULL, 1))
-//			{
-				if (jumpToNextType(&state, buf, sizeof(buf),
-						4, JSON_TYPE_PAIR_NAME, "3h", 1))
-				{
-					if (jsonparse_next(&state) == JSON_TYPE_NUMBER)
-					{
-						jsonparse_copy_value(&state, buf, sizeof(buf));
-						forecast[i].rainsnow += strtofloat(buf);
-						debug("forecast[%d] rain: %s\n", i, buf);
-					}
-				}
-//			}
-		}
-	}
-	return i;
+LOCAL int ICACHE_FLASH_ATTR pathEqual(const Path *p1, const Path *p2)
+{
+    if (p1->count != p2->count)
+    {
+        return FALSE;
+    }
+    size_t i;
+    for(i = 0; i < p1->count; i++)
+    {
+        if (strcmp(p1->segments[i], p2->segments[i]))
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }

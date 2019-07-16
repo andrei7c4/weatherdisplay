@@ -1,6 +1,7 @@
 #ifndef INCLUDE_COMMON_H_
 #define INCLUDE_COMMON_H_
 
+#include <stdint.h>
 #include "typedefs.h"
 
 #define NELEMENTS(array) (sizeof (array) / sizeof ((array) [0]))
@@ -28,16 +29,21 @@ typedef struct Forecast_t
 	uint datetime;
 	union
 	{
-		float val;
+	    struct
+	    {
+	        uint16_t temp;
+	        uint16_t rainsnow;
+	    };
 		struct
 		{
-			float min;
-			float max;
+	        uint16_t tempMin;
+	        uint16_t tempMax;
 		};
-	}temp;
-	float rainsnow;
+	}value;
 	IconId icon;
 }Forecast;
+
+#define FLOAT_SCALE     100.0
 
 typedef enum
 {
@@ -47,9 +53,8 @@ typedef enum
 	eBothCharts
 }ForecastType;
 
-#define FORECAST_HOURLY_SIZE		40
-#define FORECAST_HOURLY_CHART_CNT	9
-#define FORECAST_DAILY_SIZE			6
+#define FORECAST_HOURLY_SIZE		32
+#define FORECAST_DAILY_SIZE			((FORECAST_HOURLY_SIZE / 8) + 1)
 
 
 #endif /* INCLUDE_COMMON_H_ */

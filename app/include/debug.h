@@ -4,7 +4,7 @@
 #include <osapi.h>
 #include "config.h"
 
-#define NDEBUG
+//#define NDEBUG
 
 #ifndef NDEBUG
 #define debug(...) \

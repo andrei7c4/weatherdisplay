@@ -79,6 +79,10 @@ void ICACHE_FLASH_ATTR retainWeather(CurWeather *curWeather,
 		Forecast *daily, int dailyCount,
 		float indoorTemp)
 {
+	debug("retainWeather hourlyCount %d, dailyCount %d\n", hourlyCount, dailyCount);
+	if (hourlyCount < 0) hourlyCount = 0;
+	if (dailyCount < 0) dailyCount = 0;
+
 	// save current weather
 	uint dst = RTC_WEATHER_ADDR;
 	dst = systemRtcMemWrite(dst, (uint*)curWeather, sizeof(CurWeather));
@@ -95,6 +99,24 @@ void ICACHE_FLASH_ATTR retainWeather(CurWeather *curWeather,
 	systemRtcMemWrite(dst, (uint*)&indoorTemp, sizeof(indoorTemp));
 }
 
+void ICACHE_FLASH_ATTR retainWeatherRead(CurWeather *curWeather,
+		Forecast *hourly, int *hourlyCount,
+		Forecast *daily, int *dailyCount)
+{
+	uint src = RTC_WEATHER_ADDR;
+	src = systemRtcMemRead(src, (uint*)curWeather, sizeof(CurWeather));
+	src = systemRtcMemRead(src, (uint*)hourlyCount, sizeof(int));
+	if (*hourlyCount > 0)
+	{
+		src = systemRtcMemRead(src, (uint*)hourly, *hourlyCount * sizeof(Forecast));
+	}
+	src = systemRtcMemRead(src, (uint*)dailyCount, sizeof(int));
+	if (*dailyCount > 0)
+	{
+		systemRtcMemRead(src, (uint*)daily, *dailyCount * sizeof(Forecast));
+	}
+}
+
 /**
  * Returns true if weather, forecast and indoor temperature
  * are equal or close enough to the data saved in RTC memory.
@@ -104,6 +126,9 @@ int ICACHE_FLASH_ATTR retainedWeatherEqual(CurWeather *curWeather,
 		Forecast *daily, int dailyCount,
 		float indoorTemp)
 {
+	if (hourlyCount < 0) hourlyCount = 0;
+	if (dailyCount < 0) dailyCount = 0;
+
 	// compare current weather
 	uint rtcMemBlock = RTC_WEATHER_ADDR;
 	if (!weatherEqual(&rtcMemBlock, curWeather))
@@ -164,18 +189,26 @@ LOCAL int ICACHE_FLASH_ATTR weatherEqual(uint *rtcMemBlock, CurWeather *weather)
 LOCAL int ICACHE_FLASH_ATTR forecastEqual(Forecast *f1, Forecast *f2, ForecastType type)
 {
 	if (f1->datetime != f2->datetime ||
-		!tempsEqual(f1->temp.val, f2->temp.val) ||
 		f1->icon.val != f2->icon.val)
 	{
 		return FALSE;
 	}
-	if (config.chart != eNoChart && fabs(f1->rainsnow - f2->rainsnow) > 0.2)
+	switch (type)
 	{
-		return FALSE;
-	}
-	if (type == eDailyChart)
-	{
-		return tempsEqual(f1->temp.max, f2->temp.max);
+	case eHourlyChart:
+	    if (!tempsEqual(f1->value.temp / FLOAT_SCALE, f2->value.temp / FLOAT_SCALE) ||
+	       fabs((f1->value.rainsnow / FLOAT_SCALE) - (f2->value.rainsnow / FLOAT_SCALE)) > 0.2)
+	    {
+	        return FALSE;
+	    }
+	    break;
+	case eDailyChart:
+        if (!tempsEqual(f1->value.tempMin / FLOAT_SCALE, f2->value.tempMin / FLOAT_SCALE) ||
+            !tempsEqual(f1->value.tempMax / FLOAT_SCALE, f2->value.tempMax / FLOAT_SCALE))
+        {
+            return FALSE;
+        }
+        break;
 	}
 	return TRUE;
 }

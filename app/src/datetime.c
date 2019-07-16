@@ -1,6 +1,7 @@
 #include <ets_sys.h>
 #include <limits.h>
 #include "datetime.h"
+#include "typedefs.h"
 
 /* Source:
  * http://stackoverflow.com/a/21593949
@@ -26,7 +27,10 @@ int ICACHE_FLASH_ATTR epochToTm(long long t, struct tm *tm)
 
 	/* Reject time_t values whose year would overflow int */
 	if (t < INT_MIN * 31622400LL || t > INT_MAX * 31622400LL)
-		return -1;
+	{
+		tm->valid = FALSE;
+		return ERROR;
+	}
 
 	secs = t - LEAPOCH;
 	days = secs / 86400;
@@ -84,7 +88,30 @@ int ICACHE_FLASH_ATTR epochToTm(long long t, struct tm *tm)
 	tm->tm_min = remsecs / 60 % 60;
 	tm->tm_sec = remsecs % 60;
 
-	return 0;
+	tm->valid = TRUE;
+	return OK;
+}
+
+int ICACHE_FLASH_ATTR epochToWeekday(long long t)
+{
+	long long days, secs;
+	int remsecs;
+
+	/* Reject time_t values whose year would overflow int */
+	if (t < INT_MIN * 31622400LL || t > INT_MAX * 31622400LL)
+	{
+		return ERROR;
+	}
+
+	secs = t - LEAPOCH;
+	days = secs / 86400;
+	remsecs = secs % 86400;
+	if (remsecs < 0) {
+		remsecs += 86400;
+		days--;
+	}
+
+	return (3+days)%7;
 }
 
 int ICACHE_FLASH_ATTR epochToHours(long long t)

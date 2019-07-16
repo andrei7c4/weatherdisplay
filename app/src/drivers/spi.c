@@ -26,6 +26,8 @@
 #include "drivers/spi.h"
 
 
+LOCAL void spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk, HSpiPins pins);
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Function Name: spi_init
@@ -34,12 +36,12 @@
 //				 
 ////////////////////////////////////////////////////////////////////////////////
 
-void spi_init(uint8 spi_no){
+void spi_init(uint8 spi_no, uint16 prediv, uint8 cntdiv, HSpiPins pins){
 	
 	if(spi_no > 1) return; //Only SPI and HSPI are valid spi modules. 
 
-	spi_init_gpio(spi_no, SPI_CLK_USE_DIV);
-	spi_clock(spi_no, SPI_CLK_PREDIV, SPI_CLK_CNTDIV);
+	spi_init_gpio(spi_no, SPI_CLK_USE_DIV, pins);
+	spi_clock(spi_no, prediv, cntdiv);
 	spi_tx_byte_order(spi_no, SPI_BYTE_ORDER_HIGH_TO_LOW);
 	spi_rx_byte_order(spi_no, SPI_BYTE_ORDER_HIGH_TO_LOW); 
 
@@ -91,7 +93,7 @@ void spi_mode(uint8 spi_no, uint8 spi_cpha,uint8 spi_cpol){
 //				 
 ////////////////////////////////////////////////////////////////////////////////
 
-void spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk){
+LOCAL void spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk, HSpiPins pins){
 
 //	if(spi_no > 1) return; //Not required. Valid spi_no is checked with if/elif below.
 
@@ -108,10 +110,16 @@ void spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk){
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_SD_DATA1_U, 1);	
 	}else if(spi_no==HSPI){
 		WRITE_PERI_REG(PERIPHS_IO_MUX, 0x105|(clock_div_flag<<9)); //Set bit 9 if 80MHz sysclock required
-		PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, 2); //GPIO12 is HSPI MISO pin (Master Data In)
-		PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, 2); //GPIO13 is HSPI MOSI pin (Master Data Out)
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, 2); //GPIO14 is HSPI CLK pin (Clock)
-		//PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, 2); //GPIO15 is HSPI CS pin (Chip Select / Slave Select)
+		if (pins.miso){
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, 2); //GPIO12 is HSPI MISO pin (Master Data In)
+		}
+		if (pins.mosi){
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, 2); //GPIO13 is HSPI MOSI pin (Master Data Out)
+		}
+		if (pins.cs){
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, 2); //GPIO15 is HSPI CS pin (Chip Select / Slave Select)
+		}
 	}
 
 }
@@ -309,7 +317,7 @@ uint32 spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 add
 //########## Return DIN data ##########//
 	if(din_bits) {
 		while(spi_busy(spi_no));	//wait for SPI transaction to complete
-		
+
 		if(READ_PERI_REG(SPI_USER(spi_no))&SPI_RD_BYTE_ORDER) {
 			return READ_PERI_REG(SPI_W0(spi_no)) >> (32-din_bits); //Assuming data in is written to MSB. TBC
 		} else {
@@ -323,21 +331,3 @@ uint32 spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 add
 	//Transaction completed
 	return 1; //success
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-/*///////////////////////////////////////////////////////////////////////////////
-//
-// Function Name: func
-//   Description: 
-//    Parameters: 
-//				 
-////////////////////////////////////////////////////////////////////////////////
-
-void func(params){
-
-}
-
-///////////////////////////////////////////////////////////////////////////////*/
-
-

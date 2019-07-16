@@ -32,7 +32,7 @@
 #ifndef JSONPARSE_H_
 #define JSONPARSE_H_
 
-#include "c_types.h"
+#include "contiki.h"
 #include "json.h"
 
 #ifdef JSONPARSE_CONF_MAX_DEPTH

@@ -3,65 +3,48 @@
 #include <mem.h>
 #include <float.h>
 #include <stddef.h>
+
+#include "display.h"
+#include "graphics.h"
 #include "gui.h"
 #include "common.h"
 #include "conv.h"
+#include "datetime.h"
 #include "fonts.h"
 #include "icons.h"
-#include "display.h"
 #include "config.h"
 #include "debug.h"
 
 
-const uint **scaleFont = arial21;
+const uint *scaleFont = arial21;
 #define SCALE_WIDTH			30
 #define SCALE_MAX_STEPS		5
 #define SCALE_STEP_MULT		5
 
-const uint **hoursFont = arial21;
-const uint **daysFont = arial21;
+const uint *hoursFont = arial21;
+const uint *daysFont = arial21;
 
 #define ICON_SIZE		64
 
 
-LOCAL void ICACHE_FLASH_ATTR findMinMaxTemp(Forecast *forecast, ForecastType type, int cnt, float *min, float *max)
+LOCAL void ICACHE_FLASH_ATTR findMinMaxTemp(Forecast *forecast, int cnt, float *min, float *max)
 {
 	*min = FLT_MAX;
 	*max = FLT_MIN;
 	int i;
 	float temp;
-	switch (type)
-	{
-	case eHourlyChart:
-		for (i = 0; i < cnt; i++)
-		{
-			temp = forecast[i].temp.val;
-			if (temp < *min)
-			{
-				*min = temp;
-			}
-			if (temp > *max)
-			{
-				*max = temp;
-			}
-		}
-		break;
-	case eDailyChart:
-		for (i = 0; i < cnt; i++)
-		{
-			temp = forecast[i].temp.min;
-			if (temp < *min)
-			{
-				*min = temp;
-			}
-			temp = forecast[i].temp.max;
-			if (temp > *max)
-			{
-				*max = temp;
-			}
-		}
-		break;
-	}
+    for (i = 0; i < cnt; i++)
+    {
+        temp = forecast[i].value.temp / FLOAT_SCALE;
+        if (temp < *min)
+        {
+            *min = temp;
+        }
+        if (temp > *max)
+        {
+            *max = temp;
+        }
+    }
 }
 
 LOCAL float ICACHE_FLASH_ATTR findMaxRain(Forecast *forecast, int cnt)
@@ -71,7 +54,7 @@ LOCAL float ICACHE_FLASH_ATTR findMaxRain(Forecast *forecast, int cnt)
 	float rain;
 	for (i = 0; i < cnt; i++)
 	{
-		rain = forecast[i].rainsnow;
+		rain = forecast[i].value.rainsnow / FLOAT_SCALE;
 		if (rain > max)
 		{
 			max = rain;
@@ -178,14 +161,14 @@ LOCAL void ICACHE_FLASH_ATTR calcRainScale(int max, int *steps, int nrSteps)
 LOCAL void ICACHE_FLASH_ATTR drawScaleValus(int *values, int *valYpos, int cnt, int x, int y, char *title, int alignRight)
 {
 	int yPos = yPos = valYpos[0]+y;
-	int strWidth = dispStrWidth(scaleFont, title);
+	int strWidth = gfxStrWidth(scaleFont, title);
 	if (alignRight)
 	{
-		dispDrawStrAlignRight(scaleFont, x+strWidth, yPos-6, title);
+		gfxDrawStrAlignRight(scaleFont, x+strWidth, yPos-6, title);
 	}
 	else
 	{
-		dispDrawStr(scaleFont, x-strWidth, yPos-6, title);
+		gfxDrawStr(scaleFont, x-strWidth, yPos-6, title);
 	}
 
 	char str[4];
@@ -200,11 +183,11 @@ LOCAL void ICACHE_FLASH_ATTR drawScaleValus(int *values, int *valYpos, int cnt, 
 			os_sprintf(str, "%d", value);
 			if (alignRight)
 			{
-				dispDrawStrAlignRight(scaleFont, x+24, yPos-6, str);
+				gfxDrawStrAlignRight(scaleFont, x+24, yPos-6, str);
 			}
 			else
 			{
-				dispDrawStr(scaleFont, x-24, yPos-6, str);
+				gfxDrawStr(scaleFont, x-24, yPos-6, str);
 			}
 		}
 	}
@@ -218,15 +201,11 @@ LOCAL void ICACHE_FLASH_ATTR drawHorizontalLines(int *stepsYpos, int nrSteps, in
 		yPos = stepsYpos[i]+y;
 		if (i < (nrSteps-1))
 		{
-			if (i > 0 && (yPos & 1)) // might interfere with dotted bars
-			{
-				yPos++;
-			}
-			dispDrawLineDotted(x, yPos, x+width-1, yPos, 1, 1);
+			gfxDrawLineDotted(x, yPos, x+width-1, yPos, 1, 1);
 		}
 		else
 		{
-			dispDrawLine(x, yPos, x+width-1, yPos, 1);
+			gfxDrawLine(x, yPos, x+width-1, yPos, 1);
 		}
 	}
 }
@@ -245,57 +224,68 @@ LOCAL int ICACHE_FLASH_ATTR calcXstep(int width, int cnt, int stretchFactor, int
 	return (xStep*stretchFactor);
 }
 
-LOCAL void ICACHE_FLASH_ATTR drawVerticalLines(int x, int y, int width, int height, int cnt, int stretchFactor)
+LOCAL void ICACHE_FLASH_ATTR drawVerticalLinesHourly(int x, int y, int width, int height, int cnt)
 {
-	int xStep = calcXstep(width, cnt, stretchFactor, 1);
-	int xPos = x + xStep/stretchFactor/2;
+	int xStep = xStep = (float)width/cnt + 0.5;
+	int xPos = x + xStep/2;
 	int halfStep = xStep/2;
 
-	dispDrawLine(x, y, x, y+height-1, 1);
+	gfxDrawLine(x, y, x, y+height-1, 1);
 	int i;
 	for (i = 0; i < (cnt-1); i++)
 	{
-		dispDrawLine(xPos+halfStep, y, xPos+halfStep, y+height-1, 1);
+		gfxDrawLine(xPos+halfStep, y, xPos+halfStep, y+height-1, 1);
 		xPos += xStep;
 	}
 	int lastPos = x+width-1;
-	dispDrawLine(lastPos, y, lastPos, y+height-1, 1);
+	gfxDrawLine(lastPos, y, lastPos, y+height-1, 1);
+}
+
+LOCAL void ICACHE_FLASH_ATTR drawVerticalLinesDaily(int *dayBoundaries, int dayBoundariesCnt, int x, int y, int width, int height)
+{
+	int i;
+	for (i = 0; i < dayBoundariesCnt; i++)
+	{
+	    gfxDrawLine(dayBoundaries[i], y, dayBoundaries[i], y+height-1, 1);
+	}
 }
 
 LOCAL void ICACHE_FLASH_ATTR drawPlotLine(float *values, int valMin, int valMax, int cnt,
-		int x, int y, int width, int height, int stretchFactor)
+		int x, int y, int width, int height, int radius)
 {
 	int valDiff = valMax - valMin;
 	float pixelsPerStep = (float)height / valDiff;
 
-	int xStep = calcXstep(width, cnt, stretchFactor, 1);
-	int xPos0 = x + xStep/stretchFactor/2;
+	int xStep = (float)width/cnt + 0.5;
+	int xPos0 = x + xStep/2;
 	int xPos1, yPos1;
 	int yPos0 = (((float)valMax - values[0]) * pixelsPerStep) + y + 0.5;
-	dispDrawcircle(xPos0, yPos0, 5, 1, 1);
+	if(radius) gfxDrawcircle(xPos0, yPos0, radius, 1, 1);
 
 	int i;
 	for (i = 1; i < cnt; i++)
 	{
 		yPos1 = (((float)valMax - values[i]) * pixelsPerStep) + y + 0.5;
 		xPos1 = xPos0 + xStep;
-		dispDrawLineBold(xPos0, yPos0, xPos1, yPos1, 1, 1, 1);
-		dispDrawcircle(xPos0, yPos0, 5, 1, 1);
+		gfxDrawLineBold(xPos0, yPos0, xPos1, yPos1, 1, 1, 1);
+		if(radius) gfxDrawcircle(xPos0, yPos0, radius, 1, 1);
 		yPos0 = yPos1;
 		xPos0 = xPos1;
 	}
-	dispDrawcircle(xPos0, yPos0, 5, 1, 1);
+	if(radius) gfxDrawcircle(xPos0, yPos0, radius, 1, 1);
 }
 
 LOCAL void ICACHE_FLASH_ATTR drawPlotBars(float *values, int valMin, int valMax, int cnt,
-		int x, int y, int width, int height, int stretchFactor)
+		int x, int y, int width, int height)
 {
 	int valDiff = valMax - valMin;
 	float pixelsPerStep = (float)height / valDiff;
 
-	int xStep = calcXstep(width, cnt, stretchFactor, 1);
-	int xCenter = x + xStep/stretchFactor/2;
-	int yPos, xPos0, xPos1;
+	int xStep = (float)width/cnt + 0.5;
+	int xCenter = x + xStep/2;
+    int xMax = x + width - 1;
+    int yPos0 = y + height - 2;
+	int yPos1, xPos0, xPos1;
 	int barWidth = (float)xStep*0.7 + 0.5;
 	int halfBarWidth = barWidth/2;
 	int i;
@@ -305,22 +295,26 @@ LOCAL void ICACHE_FLASH_ATTR drawPlotBars(float *values, int valMin, int valMax,
 		rain = values[i];
 		if (rain > 0.001)
 		{
-			yPos = (((float)valMax - rain) * pixelsPerStep) + y + 0.5;
-			xPos0 = xCenter-halfBarWidth;
-			xPos1 = xCenter+halfBarWidth;
-			if (xPos0 < x)
+			yPos1 = (((float)valMax - rain) * pixelsPerStep) + y + 0.5;
+			if (yPos0 > yPos1)
 			{
-				xPos0 = x;
+	            xPos0 = xCenter-halfBarWidth;
+	            xPos1 = xCenter+halfBarWidth;
+	            if (xPos0 < x)
+	            {
+	                xPos0 = x;
+	            }
+	            if (xPos1 > xMax)
+	            {
+	                xPos1 = xMax;
+	            }
+
+	            gfxDrawRectFill(xPos0 > x ? xPos0-1 : xPos0,
+                                yPos0,
+                                xPos1 < xMax ? xPos1+1 : xPos1,
+                                yPos1, 0);
+                gfxDrawRectDotted(xPos0, yPos0, xPos1, yPos1, 1, 1);
 			}
-			if (xPos0 & 1) // might interfere with horisontal lines
-			{
-				xPos0++;
-			}
-			if (xPos1 > (x+width-1))
-			{
-				xPos1 = x+width-1;
-			}
-			dispDrawRectDotted(xPos0, y+height, xPos1, yPos, 1, 1);
 		}
 		xCenter += xStep;
 	}
@@ -335,12 +329,12 @@ LOCAL void ICACHE_FLASH_ATTR drawHours(Forecast *forecast, int cnt, int x, int y
 	int i;
 	for (i = 0; i < cnt; i+=inc)
 	{
-		if (epochToTm(forecast[i].datetime+config.utcoffset, &tm) == OK)
+		if (epochToTm(forecast[i].datetime, &tm) == OK)
 		{
 			printTime(&tm, strbuf);
 			if (config.clock24)
 			{
-				dispDrawStrCentred(hoursFont, xPos, y, strbuf);
+				gfxDrawStrCentred(hoursFont, xPos, y, strbuf);
 			}
 			else
 			{
@@ -350,37 +344,54 @@ LOCAL void ICACHE_FLASH_ATTR drawHours(Forecast *forecast, int cnt, int x, int y
 				os_strcpy(ampm, strbuf+timeStrLen-2);
 				strbuf[timeStrLen-2] = '\0';
 
-				int timeWidth = dispStrWidth(hoursFont, strbuf);
-				int fullWidth = timeWidth + dispStrWidth(arial16, ampm);
+				int timeWidth = gfxStrWidth(hoursFont, strbuf);
+				int fullWidth = timeWidth + gfxStrWidth(arial16, ampm);
 				int strX = xPos-(fullWidth/2);
-				strX = alignTo8(strX);	// align to nearest 8 pixel boundary
-				dispDrawStr(hoursFont, strX, y, strbuf);
-				dispDrawStr(arial16, strX+timeWidth, y+4, ampm);
+				gfxDrawStr(hoursFont, strX, y, strbuf);
+				gfxDrawStr(arial16, strX+timeWidth, y+4, ampm);
 			}
 			xPos += xStep;
 		}
 	}
 }
 
-LOCAL void ICACHE_FLASH_ATTR drawDays(Forecast *forecast, int cnt, int x, int y, int width, int stretchFactor, int inc)
+LOCAL void ICACHE_FLASH_ATTR drawDays(Forecast *forecast, int *dayBoundaries, int cnt, int x, int y, int width)
 {
-	int xStep = calcXstep(width, cnt, stretchFactor, inc);
-	int xPos = x + xStep/stretchFactor/2;
-
-	char weekday[10] = "Tomorrow";
-	dispDrawStrCentred(daysFont, xPos, y, weekday);
-	xPos += xStep;
-
-	int i;
-	for (i = 1; i < cnt; i+=inc)
+    int i;
+	for (i = 0; i < cnt; i++)
 	{
-		epochToWeekday(forecast[i].datetime+config.utcoffset, weekday);
-		dispDrawStrCentred(daysFont, xPos, y, weekday);
-		xPos += xStep;
+		const char *weekday = epochToWeekdayStr(forecast[i].datetime);
+		int space = dayBoundaries[i+1] - dayBoundaries[i];
+		int strWidth = gfxStrWidth(daysFont, weekday);
+		if(space >= strWidth)
+		{
+	        int center = space / 2 + dayBoundaries[i];
+		    int strX = center - (strWidth/2);
+		    gfxDrawStr(daysFont, strX, y, weekday);
+		}
 	}
 }
 
-LOCAL void ICACHE_FLASH_ATTR drawIcons(Forecast *forecast, int cnt, int x, int y, int width, int stretchFactor, int inc)
+LOCAL void ICACHE_FLASH_ATTR drawIconsDaily(Forecast *forecast, int *dayBoundaries, int cnt, int x, int y, int width)
+{
+    int i;
+	for (i = 0; i < cnt; i++)
+	{
+		const uint* image = iconIdToImage(forecast[i].icon, ICON_SIZE);
+		if (image)
+		{
+	        int space = dayBoundaries[i+1] - dayBoundaries[i];
+	        if(space >= (ICON_SIZE-12))  // allow small overlap
+	        {
+	            int center = space / 2 + dayBoundaries[i];
+	            int iconX = alignTo8(center - (ICON_SIZE/2));
+	            gfxDrawImage(iconX, y, image);
+	        }
+		}
+	}
+}
+
+LOCAL void ICACHE_FLASH_ATTR drawIconsHourly(Forecast *forecast, int cnt, int x, int y, int width, int stretchFactor, int inc)
 {
 	int xStep = calcXstep(width, cnt, stretchFactor, inc);
 	int xPos = x + xStep/stretchFactor/2;
@@ -390,16 +401,16 @@ LOCAL void ICACHE_FLASH_ATTR drawIcons(Forecast *forecast, int cnt, int x, int y
 		const uint* image = iconIdToImage(forecast[i].icon, ICON_SIZE);
 		if (image)
 		{
-			dispDrawImage(xPos-(ICON_SIZE/2), y, image);
+			gfxDrawImage(xPos-(ICON_SIZE/2), y, image);
 		}
 		xPos += xStep;
 	}
 }
 
-void ICACHE_FLASH_ATTR drawForecastChart(Forecast *forecast, ForecastType type, int cnt, int x, int y, int width, int height)
+void ICACHE_FLASH_ATTR drawForecastChart(Forecast *hourly, int hourlyCnt, Forecast *daily, int dailyCnt, ForecastType type, int x, int y, int width, int height)
 {
 	float min, max;
-	findMinMaxTemp(forecast, type, cnt, &min, &max);
+	findMinMaxTemp(hourly, hourlyCnt, &min, &max);
 	int tempMin = floatToIntRound(kelvinToTemp(min));
 	int tempMax = floatToIntRound(kelvinToTemp(max));
 
@@ -419,11 +430,11 @@ void ICACHE_FLASH_ATTR drawForecastChart(Forecast *forecast, ForecastType type, 
 		valYpos[i] = stepPixels*i;
 	}
 
-	char *degree = config.fahrenheit ? "*F" : "*C";
+	char *degree = config.fahrenheit ? "°F" : "°C";
 	drawScaleValus(values, valYpos, valCnt, x, y, degree, 1);
 
 
-	int rainMax = findMaxRain(forecast, cnt);
+	int rainMax = findMaxRain(hourly, hourlyCnt);
 	calcRainScale(rainMax, values, valCnt);
 	rainMax = values[0];
 	drawScaleValus(values, valYpos, valCnt, x+width, y, "mm", 0);
@@ -433,49 +444,71 @@ void ICACHE_FLASH_ATTR drawForecastChart(Forecast *forecast, ForecastType type, 
 	int plotWidth = width-(SCALE_WIDTH*2);
 	drawHorizontalLines(valYpos, valCnt, plotX, y, plotWidth);
 
-	float *temps = (float*)os_zalloc(cnt*sizeof(float));
-	float *rains = (float*)os_zalloc(cnt*sizeof(float));
+	float *temps = (float*)os_zalloc(hourlyCnt*sizeof(float));
+	float *rains = (float*)os_zalloc(hourlyCnt*sizeof(float));
 	switch (type)
 	{
 	case eHourlyChart:
-		for (i = 0; i < cnt; i++)
-		{
-			temps[i] = kelvinToTemp(forecast[i].temp.val);
-		}
-		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 1);
+        for (i = 0; i < hourlyCnt; i++)
+        {
+            rains[i] = hourly[i].value.rainsnow / FLOAT_SCALE;
+        }
+        drawPlotBars(rains, 0, rainMax, hourlyCnt, plotX, y, plotWidth, height);
 
-		for (i = 0; i < cnt; i++)
+		for (i = 0; i < hourlyCnt; i++)
 		{
-			rains[i] = forecast[i].rainsnow;
+			temps[i] = kelvinToTemp(hourly[i].value.temp / FLOAT_SCALE);
 		}
-		drawPlotBars(rains, 0, rainMax, cnt, plotX, y, plotWidth, height, 1);
+		drawPlotLine(temps, tempMin, tempMax, hourlyCnt, plotX, y, plotWidth, height, 5);
 
-		drawVerticalLines(plotX, y+height, plotWidth, 6, cnt, 1);
-		drawHours(forecast, cnt, plotX, y+height+10, plotWidth, 2, 2);
-		drawIcons(forecast, cnt, plotX, y+height+30, plotWidth, 2, 2);
+		drawVerticalLinesHourly(plotX, y+height, plotWidth, 6, hourlyCnt);
+		drawHours(hourly, hourlyCnt, plotX, y+height+10, plotWidth, 2, 2);
+		drawIconsHourly(hourly, hourlyCnt, plotX, y+height+30, plotWidth, 2, 2);
 		break;
 	case eDailyChart:
-		for (i = 0; i < cnt; i++)
-		{
-			temps[i] = kelvinToTemp(forecast[i].temp.min);
-		}
-		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 2);
+	{
+        for (i = 0; i < hourlyCnt; i++)
+        {
+            rains[i] = hourly[i].value.rainsnow / FLOAT_SCALE;
+        }
+        drawPlotBars(rains, 0, rainMax, hourlyCnt, plotX, y, plotWidth, height);
 
-		for (i = 0; i < cnt; i++)
-		{
-			temps[i] = kelvinToTemp(forecast[i].temp.max);
-		}
-		drawPlotLine(temps, tempMin, tempMax, cnt, plotX, y, plotWidth, height, 2);
+        for (i = 0; i < hourlyCnt; i++)
+        {
+            temps[i] = kelvinToTemp(hourly[i].value.temp / FLOAT_SCALE);
+        }
+        drawPlotLine(temps, tempMin, tempMax, hourlyCnt, plotX, y, plotWidth, height, 0);
 
-		for (i = 0; i < cnt; i++)
-		{
-			rains[i] = forecast[i].rainsnow;
-		}
-		drawPlotBars(rains, 0, rainMax, cnt, plotX, y, plotWidth, height, 2);
 
-		drawVerticalLines(plotX, y+height, plotWidth, 6, cnt, 2);
-		drawDays(forecast, cnt, plotX, y+height+10, plotWidth, 2, 1);
-		drawIcons(forecast, cnt, plotX, y+height+30, plotWidth, 2, 1);
+        // calculate boundaries between days
+        int dayBoundariesCnt = dailyCnt + 1;
+        int *dayBoundaries = os_zalloc(dayBoundariesCnt * sizeof(int));
+        dayBoundaries[0] = plotX;
+        dayBoundaries[dayBoundariesCnt-1] = plotX + plotWidth-1;
+
+        int xStep = (float)plotWidth/hourlyCnt + 0.5;
+        int xPos = plotX + xStep/2;
+        int prevHour = 0;
+        int j;
+        for (i = 0, j = 1; i < hourlyCnt && j < (dayBoundariesCnt-1); i++)
+        {
+            int curHour = epochToHours(hourly[i].datetime);
+            if (curHour < prevHour)     // detect day change
+            {
+                dayBoundaries[j] = xPos;
+                j++;
+            }
+            xPos += xStep;
+            prevHour = curHour;
+        }
+
+
+        drawVerticalLinesDaily(dayBoundaries, dayBoundariesCnt, plotX, y+height, plotWidth, 6);
+        drawDays(daily, dayBoundaries, dailyCnt, plotX, y+height+10, plotWidth);
+        drawIconsDaily(daily, dayBoundaries, dailyCnt, plotX, y+height+30, plotWidth);
+
+        os_free(dayBoundaries);
+	}
 		break;
 	}
 	os_free(temps);

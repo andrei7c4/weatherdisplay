@@ -1,32 +1,47 @@
-#ifndef INCLUDE_DISPLAY_H_
-#define INCLUDE_DISPLAY_H_
+#ifndef DISPLAY_H_
+#define DISPLAY_H_
 
 #include "typedefs.h"
+#include "displays/pd74spi.h"
+#include "displays/ws75spi.h"
 
-#define DISP_HEIGHT		400		// total display height is 800, but only half of it is buffered
-#define DISP_WIDTH		480
-#define DISP_MEMWIDTH	(DISP_WIDTH/8)
+#define WAVESHARE   1
+#define PERVASIVE	2
+#define DISP_MODEL	WAVESHARE
+
+#if DISP_MODEL == WAVESHARE
+#define DISP_HEIGHT         WS75_DISP_HEIGHT
+#define DISP_WIDTH          WS75_DISP_WIDTH
+#elif DISP_MODEL == PERVASIVE
+#define DISP_HEIGHT         PD74_DISP_HEIGHT
+#define DISP_WIDTH          PD74_DISP_WIDTH
+#else
+#error "Display model not defined"
+#endif
+
 
 typedef enum{
 	eDispTopPart,
 	eDispBottomPart
 }DispPart;
 
-void dispFillMem(uchar data);
-void dispDrawImage(int x, int y, const uint *image);
-int dispDrawChar(const uint **font, int x, int y, uchar ch);
-int dispDrawStr(const uint **font, int x, int y, const char *str);
-int dispStrWidth(const uint **font, const char *str);
-int dispDrawStrCentred(const uint **font, int centre, int y, const char *str);
-int dispDrawStrAlignRight(const uint **font, int right, int y, const char *str);
-void dispDrawPixel(int x, int y, char color);
-void dispDrawLine(int x0, int y0, int x1, int y1, char color);
-void dispDrawcircle(int x0, int y0, int radius, char color, char fill);
-void dispDrawLineBold(int x0, int y0, int x1, int y1, char color, char boldX, char boldY);
-void dispDrawLineDotted(int x0, int y0, int x1, int y1, int space, char color);
-void dispDrawRectDotted(int x0, int y0, int x1, int y1, int space, char color);
+extern os_timer_t busyCheckTmr;
+
 void dispUpdate(DispPart part);
 
+#if DISP_MODEL == WAVESHARE
+#define dispIfaceInit(x)        ws75Init(x)
+#define dispRegSetup(x)         ws75RegSetup(x)
+#define dispPrintDeviceInfo(x)  ws75PrintDeviceInfo(x)
+#define dispReadTemp(x)         ws75ReadTemp(x)
+#define dispTurnOff(x)          ws75DispOff(x)
+#elif DISP_MODEL == PERVASIVE
+#define dispIfaceInit(x)		pd74SpiInit(x)
+#define dispRegSetup(x)
+#define dispPrintDeviceInfo(x)	pd74PrintDeviceInfo(x)
+#define dispReadTemp(x)			pd74ReadTemp(x)
+#define dispTurnOff(x)			pd74DispOff(x)
+#endif
 
 
-#endif /* INCLUDE_DISPLAY_H_ */
+#endif /* DISPLAY_H_ */
