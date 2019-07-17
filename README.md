@@ -1,56 +1,51 @@
 # ESP8266 Weather display
 
-This is a simple weather display built with ESP8266 WiFi chip and 7.4" E ink display from Pervasive Displays. Weather data is gathered from [OpenWeatherMap](http://openweathermap.org) service. Additionally, the device’s internal temperature sensor reading is sent to [ThingSpeak](https://thingspeak.com) service.
+This is a simple weather display built with ESP8266 WiFi chip and E ink display. Weather data is gathered from [OpenWeatherMap](http://openweathermap.org) service. Additionally, the device’s internal temperature sensor reading is sent to [ThingSpeak](https://thingspeak.com) service.
 
-Most of the time the device stays in deep sleep mode consuming only 18 µA. While updating the weather power consumption varies from 80 to 150 mA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With update interval set to 15 minutes the device has been working on a single charge for more than a year. Battery capacity is 3000 mAh.
+Most of the time the device stays in deep sleep mode, consuming only 18 µA. Update operation takes a few seconds, depending on WiFi router, DHCP server and internet connection speed. With 3000 mAh battery and update interval of 15 minutes, the device will last on a single charge for one and a half years.
 
 ## Building the software
-### On Linux
 - Install [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk)
 - Clone this repository
+- Build and flash the binary
 ```
 $ git clone https://github.com/andrei7c4/weatherdisplay
 $ cd weatherdisplay/app
+$ make all ESP_OPEN_SDK_PATH=/full/path/to/esp-open-sdk
+$ make flash ESP_OPEN_SDK_PATH=/full/path/to/esp-open-sdk ESPPORT=/serial/port/devpath
 ```
-- Set SDK paths and esptool parameters for your ESP8266 module in makefile
-- Finally build everything and flash the binary
-```
-$ make all
-$ make flash
-```
-### On Windows
-- Install [Unofficial Development Kit for Espressif ESP8266](https://github.com/CHERTS/esp8266-devkit)
-- Download ZIP or clone this repository
-- In Eclipse select File->New->Makefile Project with Existing Code
-- Set Existing Code Location to `<full path to>weatherdisplay\app` and click Finish
-- In newly created project properties (C/C++ Build) change build command to `mingw32-make.exe -f ${ProjDirPath}/Makefile`
-- In C/C++ Build/Environment add `PATH` variable with paths to MinGW and MSYS, e.g. `C:\MinGW\bin;C:\MinGW\msys\1.0\bin`
-- In Make Target view right click on newly created project and select New
-- Set Target name to `all` and click OK. Repeat this for `clean` and `flash` targets.
-- Set SDK paths and esptool parameters for your ESP8266 module in makefile
-- You should now be able to build and clean the project and flash the binaries
-
-Custom fonts and icons can be created with [this tool](https://github.com/andrei7c4/fontconverter).
 
 ## Building the hardware
 Any ESP8266 based module with at least 1 MB flash and SPI pins, such as ESP-12E, can be used. Development boards, such as [NodeMCU-DEVKIT](https://github.com/nodemcu/nodemcu-devkit-v1.0) or similar, can be used too, but power consumption of these boards might not be as low.
 
-The [display with control board](http://www.pervasivedisplays.com/kits/mpicosys740) can be purchased from [DigiKey](http://www.digikey.com/product-detail/en/SW074AS182/SW074AS182-ND/4898789).
-Display is connected to ESP8266 in the following way:
+Originally the project was designed with [this display](http://www.pervasivedisplays.com/kits/mpicosys740), which is now obsolete. In addition to the old display, software currently supports [this display from Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm).
 
-| TCM-P74-230  | ESP8266        |
-| ------------ | -------------- |
-| /EN          | GPIO5          |
-| /BUSY        | GPIO4          |
-| MISO         | HMISO (GPIO12) |
-| MOSI         | HMOSI (GPIO13) |
-| /CS          | HCS (GPIO15)   |
-| SCK          | HSCLK (GPIO14) |
+Displays are connected to ESP8266 in the following way:
 
-Additionally, there are 3V LDO regulator, programming circuit and USB to UART bridge (CP2102 or similar can be used). Please see [the schematics here](schematics.pdf).
+| ESP8266        | Waveshare    | Pervasive Displays (obsolete) |
+| -------------- | ------------ | ----------------------------- |
+| GPIO5          |              | /EN                           |
+| GPIO4          | RST          | /BUSY                         |
+| HMISO / GPIO12 | /BUSY        | MISO                          |
+| HMOSI / GPIO13 | DIN          | MOSI                          |
+| HCS / GPIO15   | /CS          | /CS                           |
+| HSCLK / GPIO14 | CLK          | SCK                           |
+
+### Notes about Waveshare dispay
+#### DIP switch configuration
+
+| DIP switch       | Position       |
+| ---------------- | -------------- |
+| Display Config   | B (Other)      |
+| Interface Config | 1 (3-line SPI) |
+
+#### Power consumption
+Waveshare display lacks dedicated enable pin. However, it can be put into sleep mode by executing a command. Ideally, in this mode the display consumes 8 µA. Unfortunately, it has been noticed that the current doesn't always stay at this level. After some time spent in the sleep mode, the current starts to grow and can reach up to 100 µA. The issue was discussed with Waveshare, but they were not able to provide a solution. As a workaround, a high side switch can be used on display's 3V3 line to completely turn off the display. Software uses GPIO5 to control the switch. Software will still execute the sleep command, so the switch can be left out, but power consumption will be higher in this case.
+
+Please see [the schematics here](schematics.pdf).
 
 ## Usage
-Device settings can be changed through the serial interface (115200/8-N-1). The following syntax should be used:
+Device settings can be changed through the serial interface (921600/8-N-1). The following syntax should be used:
 ```
 parameter:value<CR>
 ```
@@ -63,7 +58,7 @@ At least the following parameters must be set by the user:
 Additionally, [ThingSpeak](https://thingspeak.com) channel Write API Key can be set:
  - thingspeak
 
-If this key is not set, internal temperature will only be shown on the display but not sent anywhere. 
+If this key is not set, internal temperature will not be sent to ThingSpeak (it will still be indicated on the display though).
 
 The following user interface options are available:
  - chart:0 - [No forecast charts (icons only)](gui/chart0.png)
