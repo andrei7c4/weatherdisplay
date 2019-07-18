@@ -129,7 +129,7 @@ EXTRA_INCDIR = include $(SDK_BASE)/../extra/include
 LIBS = c mgcc hal phy pp net80211 lwip wpa main crypto
 
 # compiler flags using during compilation of source files
-CFLAGS = -Os -g -O2 -std=gnu90 -Wpointer-arith -Wundef -Werror -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals -mno-serialize-volatile -D__ets__ -DICACHE_FLASH
+CFLAGS = -Os -g -O2 -std=gnu90 -Wpointer-arith -Wundef -Werror -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals -mno-serialize-volatile -D__ets__ -DICACHE_FLASH -MD
 
 # linker flags used to generate the main object file
 LDFLAGS = -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
@@ -258,3 +258,5 @@ clean:
 	$(Q) rm -rf $(FW_BASE)
 
 $(foreach bdir,$(BUILD_DIR),$(eval $(call compile-objects,$(bdir))))
+
+-include $(OBJ:.o=.d)
