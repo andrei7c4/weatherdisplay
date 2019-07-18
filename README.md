@@ -45,7 +45,7 @@ Waveshare display lacks dedicated enable pin. However, it can be put into sleep 
 Please see [the schematics here](schematics.pdf).
 
 ## Usage
-Device settings can be changed through the serial interface (921600/8-N-1). The following syntax should be used:
+Device settings can be changed through the serial interface (115200/8-N-1). The following syntax should be used:
 ```
 parameter:value<CR>
 ```

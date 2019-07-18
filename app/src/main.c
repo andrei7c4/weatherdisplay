@@ -97,8 +97,7 @@ void user_init(void)
 	os_timer_disarm(&timeoutTmr);	// timeout timer, normally should never fire
 	os_timer_setfn(&timeoutTmr, (os_timer_func_t *)timeoutTmrCb, NULL);
 
-	//uart_init(BIT_RATE_115200, BIT_RATE_115200);
-	uart_init(BIT_RATE_921600, BIT_RATE_921600);
+	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 	os_printf("\n\n");
 
 	retainRead(&retain);
