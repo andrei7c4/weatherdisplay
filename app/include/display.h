@@ -7,7 +7,10 @@
 
 #define WAVESHARE   1
 #define PERVASIVE	2
+
+#ifndef DISP_MODEL
 #define DISP_MODEL	WAVESHARE
+#endif
 
 #if DISP_MODEL == WAVESHARE
 #define DISP_HEIGHT         WS75_DISP_HEIGHT
