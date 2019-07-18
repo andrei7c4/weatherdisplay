@@ -15,10 +15,10 @@ $ make all ESP_OPEN_SDK_PATH=/full/path/to/esp-open-sdk
 $ make flash ESP_OPEN_SDK_PATH=/full/path/to/esp-open-sdk ESPPORT=/serial/port/devpath
 ```
 
+Originally the project was designed with [this display](http://www.pervasivedisplays.com/kits/mpicosys740), which is now obsolete. In addition to the old display, software currently supports [this display from Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm). Software is built for this display by default. To build software for the old display, add `CFLAGS=-DDISP_MODEL=PERVASIVE` to the end of `make all` command.
+
 ## Building the hardware
 Any ESP8266 based module with at least 1 MB flash and SPI pins, such as ESP-12E, can be used. Development boards, such as [NodeMCU-DEVKIT](https://github.com/nodemcu/nodemcu-devkit-v1.0) or similar, can be used too, but power consumption of these boards might not be as low.
-
-Originally the project was designed with [this display](http://www.pervasivedisplays.com/kits/mpicosys740), which is now obsolete. In addition to the old display, software currently supports [this display from Waveshare](https://www.waveshare.com/7.5inch-e-paper-hat.htm).
 
 Displays are connected to ESP8266 in the following way:
 
